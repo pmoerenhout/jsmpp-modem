@@ -1,7 +1,27 @@
 # Compiled class file
 *.class
 
-# Log file
+# maven build files
+target/
+dependency-reduced-pom.xml
+
+# Eclipse project files
+.classpath
+.project
+.settings
+.externalToolBuilders
+
+# IntelliJ project files
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Intellij plugin files
+atlassian-ide-plugin.xml
+
+# MAC_OSX
+*.DS_Store
 *.log
 
 # BlueJ files
@@ -13,7 +33,6 @@
 # Package Files #
 *.jar
 *.war
-*.nar
 *.ear
 *.zip
 *.tar.gz
@@ -21,3 +40,4 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+/.idea/vcs.xml
