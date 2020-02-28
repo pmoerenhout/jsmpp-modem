@@ -1,0 +1,16 @@
+spring:
+  jmx:
+    enabled: false
+
+smpp:
+  service-type: CMT
+  #  possible SMSC default alphabets: CCGSM, CCPGSM, SCGSM, SCPGSM, ASCII, ISO-8859-1
+  charset: CCGSM
+  port: 2075
+  bind-timeout: 5000
+  enquire-link-timer: 300000
+  transaction-timer: 60000
+
+logging:
+  level:
+    com.github.pmoerenhout: info

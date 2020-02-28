@@ -13,13 +13,8 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.0.3.RELEASE</version>
+    <version>2.2.5.RELEASE</version>
   </parent>
-
-  <modules>
-    <module>jsmpp-modem-jpa</module>
-    <module>jsmpp-modem-app</module>
-  </modules>
 
   <developers>
     <developer>
@@ -36,168 +31,206 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <java.version>1.8</java.version>
-    <java.source.version>1.8</java.source.version>
-    <java.target.version>1.8</java.target.version>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
 
     <at-commander.version>1.0-SNAPSHOT</at-commander.version>
 
-    <commons-collections4.version>4.1</commons-collections4.version>
-    <commons-lang3.version>3.7</commons-lang3.version>
-    <commons-text.version>1.1</commons-text.version>
-    <commons-rng.version>1.0</commons-rng.version>
+    <!--https://github.com/brake/telecom-charsets-->
+
+    <commons-collections4.version>4.4</commons-collections4.version>
+    <commons-lang3.version>3.9</commons-lang3.version>
+    <commons-text.version>1.6</commons-text.version>
+    <commons-rng.version>1.1</commons-rng.version>
 
     <jcharset.version>2.0</jcharset.version>
+    <jsmpp.version>2.3.8</jsmpp.version>
     <jssc.version>2.8.0</jssc.version>
-    <junit.version>4.12</junit.version>
+    <junit.version>4.13</junit.version>
     <marineapi.version>0.10.0</marineapi.version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <slf4j.version>1.7.30</slf4j.version>
+    <pduutils.version>1.0-SNAPSHOT</pduutils.version>
+    <throwable-interfaces.verson>1.13</throwable-interfaces.verson>
 
-    <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
-    <maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+    <maven-jar-plugin.version>3.1.1</maven-jar-plugin.version>
   </properties>
 
   <!--<repositories>-->
-    <!--<repository>-->
-      <!--<id>oss-snapshots-repo</id>-->
-      <!--<name>Sonatype OSS Maven Repository</name>-->
-      <!--<url>https://oss.sonatype.org/content/groups/public</url>-->
-      <!--<snapshots>-->
-        <!--<enabled>true</enabled>-->
-        <!--<updatePolicy>daily</updatePolicy>-->
-      <!--</snapshots>-->
-    <!--</repository>-->
+  <!--<repository>-->
+  <!--<id>oss-snapshots-repo</id>-->
+  <!--<name>Sonatype OSS Maven Repository</name>-->
+  <!--<url>https://oss.sonatype.org/content/groups/public</url>-->
+  <!--<snapshots>-->
+  <!--<enabled>true</enabled>-->
+  <!--<updatePolicy>daily</updatePolicy>-->
+  <!--</snapshots>-->
+  <!--</repository>-->
 
-    <!--<repository>-->
-      <!--<id>central</id>-->
-      <!--<url>http://repo1.maven.org/maven2/</url>-->
-    <!--</repository>-->
+  <!--<repository>-->
+  <!--<id>central</id>-->
+  <!--<url>http://repo1.maven.org/maven2/</url>-->
+  <!--</repository>-->
 
-    <!--<repository>-->
-      <!--<id>oss-sonatype</id>-->
-      <!--<name>oss-sonatype</name>-->
-      <!--<url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
-      <!--<snapshots>-->
-        <!--<enabled>true</enabled>-->
-        <!--<updatePolicy>daily</updatePolicy>-->
-      <!--</snapshots>-->
-    <!--</repository>-->
+  <!--<repository>-->
+  <!--<id>oss-sonatype</id>-->
+  <!--<name>oss-sonatype</name>-->
+  <!--<url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
+  <!--<snapshots>-->
+  <!--<enabled>true</enabled>-->
+  <!--<updatePolicy>daily</updatePolicy>-->
+  <!--</snapshots>-->
+  <!--</repository>-->
   <!--</repositories>-->
 
-  <dependencyManagement>
-    <dependencies>
-      <!-- Internal module dependencies -->
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>jsmpp-modem-app</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>jsmpp-modem-jpa</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-module-neul</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <!-- Test JAR dependencies -->
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-module-basic</artifactId>
-        <type>test-jar</type>
-        <version>${project.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <!-- jSSC -->
-      <dependency>
-        <groupId>org.scream3r</groupId>
-        <artifactId>jssc</artifactId>
-        <version>${jssc.version}</version>
-      </dependency>
-
-      <!--  Charsets-->
-      <dependency>
-        <groupId>net.freeutils</groupId>
-        <artifactId>jcharset</artifactId>
-        <version>${jcharset.version}</version>
-      </dependency>
-
-      <!-- Apache Commons -->
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-collections4</artifactId>
-        <version>${commons-collections4.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>${commons-lang3.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-text</artifactId>
-        <version>${commons-text.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-rng-simple</artifactId>
-        <version>${commons-rng.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-rng-core</artifactId>
-        <version>${commons-rng.version}</version>
-      </dependency>
-
-      <!-- AT Commander -->
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-api</artifactId>
-        <version>${at-commander.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-common</artifactId>
-        <version>${at-commander.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-module-3gpp</artifactId>
-        <version>${at-commander.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.github.pmoerenhout</groupId>
-        <artifactId>at-commander-jssc</artifactId>
-        <version>${at-commander.version}</version>
-      </dependency>
-
-      <!-- Slf4j -->
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web-services</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-logging</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- jSMPP-->
+    <dependency>
+      <groupId>org.jsmpp</groupId>
+      <artifactId>jsmpp</artifactId>
+      <version>${jsmpp.version}</version>
+    </dependency>
+
+    <!-- SMS Library (from local) -->
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>pduutils</artifactId>
+      <version>${pduutils.version}</version>
+    </dependency>
+
+    <!-- JCharset (GSM) -->
+    <dependency>
+      <groupId>net.freeutils</groupId>
+      <artifactId>jcharset</artifactId>
+      <version>${jcharset.version}</version>
+    </dependency>
+
+    <!-- jSSC -->
+    <dependency>
+      <groupId>org.scream3r</groupId>
+      <artifactId>jssc</artifactId>
+      <version>${jssc.version}</version>
+    </dependency>
+
+    <!-- Apache Commons -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
+      <version>${commons-collections4.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${commons-lang3.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>${commons-text.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-rng-simple</artifactId>
+      <version>${commons-rng.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-rng-core</artifactId>
+      <version>${commons-rng.version}</version>
+    </dependency>
+
+    <!-- AT Commander -->
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>at-commander-api</artifactId>
+      <version>${at-commander.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>at-commander-common</artifactId>
+      <version>${at-commander.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>at-commander-module-3gpp</artifactId>
+      <version>${at-commander.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>at-commander-jssc</artifactId>
+      <version>${at-commander.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slieb</groupId>
+      <artifactId>throwable-interfaces</artifactId>
+      <version>${throwable-interfaces.verson}</version>
+    </dependency>
+
+    <!-- Database -->
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-java8</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.vladmihalcea</groupId>
+      <artifactId>hibernate-types-5</artifactId>
+      <version>2.9.4</version>
+    </dependency>
+
+    <!-- Slf4j -->
+    <!--<dependency>-->
+    <!--<groupId>org.slf4j</groupId>-->
+    <!--<artifactId>slf4j-simple</artifactId>-->
+    <!--<version>${slf4j.version}</version>-->
+    <!--</dependency>-->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
     </dependency>
+
+    <!-- Test JAR dependencies -->
+    <dependency>
+      <groupId>com.github.pmoerenhout</groupId>
+      <artifactId>at-commander-module-basic</artifactId>
+      <type>test-jar</type>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Test dependencies -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -206,19 +239,4 @@
     </dependency>
   </dependencies>
 
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven-compiler-plugin.version}</version>
-          <configuration>
-            <source>${java.source.version}</source>
-            <target>${java.target.version}</target>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
 </project>
