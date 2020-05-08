@@ -5,10 +5,10 @@ import static org.junit.Assert.assertEquals;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
-import org.ajwcc.pduutils.gsm0340.SmsDeliveryPdu;
 import org.junit.Test;
 
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 import net.freeutils.charset.gsm.CCPackedGSMCharset;
 
 public class PduServiceTest {

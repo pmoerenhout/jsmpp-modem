@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 public class CharsetService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CharsetService.class);
+  private static final Logger log = LoggerFactory.getLogger(CharsetService.class);
 
   public static void showAll() {
     final SortedMap availableCharsets = Charset.availableCharsets();
@@ -26,7 +26,7 @@ public class CharsetService {
         sb.append((String) j.next());
         sb.append(", ");
       }
-      LOG.debug("{}, {}, {} {}", name, displayName, sb.toString().trim(), (e.canEncode() ? "can encode" : ", CANNOT ENCODE"));
+      log.debug("{}, {}, {} {}", name, displayName, sb.toString().trim(), (e.canEncode() ? "can encode" : ", CANNOT ENCODE"));
     }
   }
 

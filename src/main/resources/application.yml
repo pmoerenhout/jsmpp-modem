@@ -2,6 +2,10 @@ spring:
   jmx:
     enabled: false
 
+modem:
+  port: /dev/tty.usbserial-A40090EW
+  speed: 115200
+
 smpp:
   service-type: CMT
   #  possible SMSC default alphabets: CCGSM, CCPGSM, SCGSM, SCPGSM, ASCII, ISO-8859-1
@@ -13,4 +17,6 @@ smpp:
 
 logging:
   level:
+    com.github.pmoerenhout.atcommander: debug
     com.github.pmoerenhout: info
+    org.jsmpp: trace

@@ -3,13 +3,12 @@ package com.github.pmoerenhout.jsmppmodem.smsc;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.ajwcc.pduutils.gsm0340.Pdu;
-import org.ajwcc.pduutils.gsm0340.SmsDeliveryPdu;
 import org.jsmpp.InvalidResponseException;
 import org.jsmpp.PDUException;
 import org.jsmpp.PDUStringException;
@@ -29,7 +28,6 @@ import org.jsmpp.session.SMPPServerSession;
 import org.jsmpp.session.SMPPServerSessionListener;
 import org.jsmpp.session.ServerMessageReceiverListener;
 import org.jsmpp.session.ServerResponseDeliveryListener;
-import org.jsmpp.session.ServerSession;
 import org.jsmpp.session.SessionStateListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +36,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +44,8 @@ import com.github.pmoerenhout.jsmppmodem.events.BoundReceiverEvent;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.service.PduService;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 
 @Service
 public class SmppService {
@@ -147,29 +146,36 @@ public class SmppService {
 
   @EventListener
   public void handleReceivedPduEvent(final ReceivedPduEvent event) throws Exception {
-    LOG.info("handleReceivedPduEvent: {}", event.getPdu());
+    LOG.info("handleReceivedPduEvent: {}", Util.bytesToHexString(event.getPdu()));
     final DeliverSm deliverSm = getDeliverSm(event.getPdu());
-    LOG.info("deliverSm: {}", deliverSm);
+    LOG.info("Send deliverSm to all sessions: {}", deliverSm);
     final int delivered = deliver(deliverSm);
-    if (delivered == 0) {
-      storageService.save(event.getTimestamp(), event.getPdu());
-    }
+    LOG.info("Delivered to {} session(s)", delivered);
+    storageService.save(event.getTimestamp(), event.getConnectionId(), event.getPdu());
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   @EventListener
   @Async
   public void handleBoundReceiverEvent(final BoundReceiverEvent event) throws Exception {
-    LOG.info("handleBoundReceiverEvent");
+    LOG.info("Session {} is bound, send all messages", event.getServerSession());
+    // Allow the ESME to handle the bind_resp and change the state from OPEN to BOUND
+    Thread.sleep(100);
     storageService.streamAll().forEach(p -> {
       try {
         final DeliverSm deliverSm = getDeliverSm(p.getPdu());
         LOG.info("deliverSm: {}", deliverSm);
-        deliver(deliverSm);
+        int retry = 3;
+        while (retry-- > 0) {
+          if (deliver(event.getServerSession(), deliverSm)) {
+            break;
+          }
+        }
       } catch (UnsupportedEncodingException e) {
-        LOG.error("Could not send PDU", e);
+        LOG.error("Could not send message", e);
       }
     });
+    LOG.info("Session {} is bound, send all messages, DONE", event.getServerSession());
   }
 
   @Transactional
@@ -187,7 +193,7 @@ public class SmppService {
   }
 
   @Transactional
-  @Scheduled(initialDelay = 15000, fixedRate = 150000)
+  //@Scheduled(initialDelay = 15000, fixedRate = 150000)
   public void sendScheduled() {
     storageService.streamAll().forEach(p -> {
       try {
@@ -205,7 +211,7 @@ public class SmppService {
   // 07911356049938002412D1CBA7B408028082C2210000817062319183800F54747A0E4ACF41C5AAF409DA9401
   // 07911346101919F9400B911316240486F90008817062611544808C05000319040103E903E903E9029B029B029B029B03E903E903E903E9029B0020005700610072006400200068006500740020007700650072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B029B029B03E903E903E903E9029B002000570061007200640020006800650074002000770065
   @Transactional
-  @Scheduled(fixedRate = 60000)
+  // @Scheduled(fixedRate = 10000)
   public void sendForTesting() throws Exception {
     try {
       final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray(
@@ -288,6 +294,7 @@ public class SmppService {
       optionalParameters.add(new OptionalParameter.Byte((short) 8194, getTypeOfNumber(pdu.getSmscAddressType())));
       optionalParameters.add(new OptionalParameter.Byte((short) 8195, getNumberPlanIndicator(pdu.getSmscAddressType())));
     }
+    optionalParameters.add(new OptionalParameter.OctetString((short) 8196, pdu.getServiceCentreTimestamp().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
     deliverSm.setOptionalParameters(optionalParameters.toArray(new OptionalParameter[optionalParameters.size()]));
     deliverSm.setEsmClass((byte) 0x00);
     if (pdu.hasTpUdhi()) {
@@ -315,12 +322,13 @@ public class SmppService {
       }
     });
     final int delivered = i.get();
-    LOG.info("The message was delivered to {} sessions", delivered);
+    LOG.info("The message was delivered to {} session(s)", delivered);
     return delivered;
   }
 
-  public boolean deliver(final ServerSession serverSession, final DeliverSm deliverSm) {
+  public boolean deliver(final SMPPServerSession serverSession, final DeliverSm deliverSm) {
     try {
+      LOG.info("deliver on {} {}", serverSession.getSessionId(), serverSession.getSessionState());
       serverSession.deliverShortMessage(
           deliverSm.getServiceType(),
           TypeOfNumber.valueOf(deliverSm.getSourceAddrTon()),
@@ -339,7 +347,7 @@ public class SmppService {
       return true;
     } catch (PDUException | ResponseTimeoutException |
         InvalidResponseException | NegativeResponseException | IOException e) {
-      LOG.warn("Could not send message", e);
+      LOG.warn("Could not send deliver_sm", e);
       return false;
     }
   }
@@ -368,6 +376,7 @@ public class SmppService {
           LOG.error("PDU string exception", e);
           bindRequest.reject(SMPPConstant.STAT_ESME_RSYSERR);
         }
+        LOG.info("Set enquireLink time to {}ms", enquireLinkTimer);
         serverSession.setEnquireLinkTimer(enquireLinkTimer);
       } catch (final IllegalStateException e) {
         LOG.error("System error", e);
@@ -376,7 +385,6 @@ public class SmppService {
       } catch (final IOException e) {
         LOG.error("Failed accepting bind request for session", e);
       }
-      LOG.info("WaitBindTask ended");
     }
   }
 

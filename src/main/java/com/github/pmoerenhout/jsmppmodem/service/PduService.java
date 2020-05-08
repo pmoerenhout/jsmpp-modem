@@ -1,16 +1,16 @@
 package com.github.pmoerenhout.jsmppmodem.service;
 
-import org.ajwcc.pduutils.MsIsdn;
-import org.ajwcc.pduutils.gsm0340.Pdu;
-import org.ajwcc.pduutils.gsm0340.PduFactory;
-import org.ajwcc.pduutils.gsm0340.PduGenerator;
-import org.ajwcc.pduutils.gsm0340.PduParser;
-import org.ajwcc.pduutils.gsm0340.SmsDeliveryPdu;
-import org.ajwcc.pduutils.gsm0340.SmsSubmitPdu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import com.github.pmoerenhout.pduutils.MsIsdn;
+import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
+import com.github.pmoerenhout.pduutils.gsm0340.PduFactory;
+import com.github.pmoerenhout.pduutils.gsm0340.PduGenerator;
+import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
 
 public class PduService {
 
@@ -28,6 +28,22 @@ public class PduService {
     pdu.setDataCodingScheme(0);
     pdu.setProtocolIdentifier(0);
     pdu.setValidityPeriod(1);
+    return Util.hexToByteArray(pduGenerator.generatePduString(pdu));
+  }
+
+  public static byte[] createSmsSubmitBinaryPdu(final String address, final byte[] data) {
+    final PduGenerator pduGenerator = new PduGenerator();
+    final SmsSubmitPdu pdu = PduFactory.newSmsSubmitPdu();
+    pdu.setMessageReference(0);
+    pdu.setAddress(new MsIsdn(address));
+    pdu.setAddressType(0x11);
+    pdu.setDataCodingScheme(4);
+    pdu.setProtocolIdentifier(0);
+    pdu.setValidityPeriod(1);
+    pdu.setTpUdhi(0);
+    pdu.setUDLength(data.length);
+    pdu.setUDData(data);
+    pdu.setDataBytes(data);
     return Util.hexToByteArray(pduGenerator.generatePduString(pdu));
   }
 

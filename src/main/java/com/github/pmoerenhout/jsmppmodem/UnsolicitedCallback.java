@@ -7,7 +7,9 @@ import com.github.pmoerenhout.atcommander.api.UnsolicitedResponse;
 import com.github.pmoerenhout.atcommander.api.UnsolicitedResponseCallback;
 import com.github.pmoerenhout.atcommander.module._3gpp.commands.NetworkRegistrationResponse;
 import com.github.pmoerenhout.atcommander.module._3gpp.unsolicited.GprsNetworkRegistrationUnsolicited;
+import com.github.pmoerenhout.atcommander.module._3gpp.unsolicited.MessageTerminatingIndicationUnsolicited;
 import com.github.pmoerenhout.atcommander.module._3gpp.unsolicited.MessageTerminatingUnsolicited;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedMessageIndicationEvent;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 
@@ -48,7 +50,13 @@ public class UnsolicitedCallback implements UnsolicitedResponseCallback {
           messageTerminating.getPdu(),
           messageTerminating.getPdu().length());
       final byte[] pdu = Util.hexToByteArray(messageTerminating.getPdu());
-      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, pdu));
+      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, id, pdu));
+      return;
+    } else if (response instanceof MessageTerminatingIndicationUnsolicited) {
+      final MessageTerminatingIndicationUnsolicited mti = (MessageTerminatingIndicationUnsolicited) response;
+      LOG.info("[{}] Unsolicited Message Terminating Indication: storage:{} index:{})",
+          id, mti.getStorage(), mti.getIndex());
+      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedMessageIndicationEvent(this, id, mti.getStorage(), mti.getIndex()));
       return;
     }
     LOG.warn("Received unsolicited response: {}", response);

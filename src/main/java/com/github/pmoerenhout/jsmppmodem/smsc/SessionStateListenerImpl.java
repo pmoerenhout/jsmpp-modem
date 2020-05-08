@@ -37,16 +37,32 @@ public class SessionStateListenerImpl implements SessionStateListener {
     this.sessions = sessions;
   }
 
-  public void onStateChange(SessionState newState, SessionState oldState, Session source) {
-    LOG.info("Session {} changed from {} to {}", source.getSessionId(), oldState, newState);
+  public void addServerSession(final SMPPServerSession session) {
+    LOG.info("Add server sessions {}", session);
+    this.sessions.add(session);
+  }
+
+  public void onStateChange(final SessionState newState, final SessionState oldState, final Session session) {
+    LOG.info("Session {} changed from {} to {}", session.getSessionId(), oldState, newState);
+    LOG.info("Session {} {}", session.getSessionId(), session.getClass().getSimpleName());
+    SMPPServerSession serverSession = (SMPPServerSession) session;
+    if (!sessions.contains(session)) {
+      sessions.add(serverSession);
+    }
+    if (newState.isBound()) {
+      serverSession.setEnquireLinkTimer(15000);
+    }
     if (newState == SessionState.CLOSED) {
-      final boolean isRemoved = sessions.remove(source);
+      final boolean isRemoved = sessions.remove(session);
       if (!isRemoved) {
-        LOG.warn("The session {} could not be removed from the sessions list", source.getSessionId());
+        LOG.warn("The session {} could not be removed from the sessions list", session.getSessionId());
       }
     }
     if (newState == SessionState.BOUND_RX || newState == SessionState.BOUND_TRX) {
-      ApplicationContextProvider.getApplicationContext().publishEvent(new BoundReceiverEvent(this));
+      LOG.info("Send BoundReceiverEvent");
+      ApplicationContextProvider.getApplicationContext().publishEvent(new BoundReceiverEvent(this, serverSession));
+    } else {
+      LOG.info("NOT Send BoundReceiverEvent");
     }
   }
 }

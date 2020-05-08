@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.jpa.model.Deliver;
 import com.github.pmoerenhout.jsmppmodem.jpa.repository.DeliverRepository;
+import com.github.pmoerenhout.jsmppmodem.util.Util;
 
 @Service
 public class StorageService {
@@ -27,13 +28,13 @@ public class StorageService {
 
   @EventListener
   public void handleReceivedPduEvent(final ReceivedPduEvent event) throws Exception {
-    LOG.info("handleReceivedPduEvent: {}", event.getPdu());
-    final Deliver saved = deliverRepository.save(getDeliver(event.getTimestamp(), event.getPdu()));
+    LOG.debug("Received PDU: {}", Util.bytesToHexString(event.getPdu()));
+    final Deliver saved = deliverRepository.save(getDeliver(event.getTimestamp(), event.getConnectionId(), event.getPdu()));
     LOG.debug("The message was saved to database with id {}", saved.getId());
   }
 
-  public void save(final long timestamp, final byte[] pduBytes) {
-    final Deliver saved = deliverRepository.save(getDeliver(timestamp, pduBytes));
+  public void save(final long timestamp, final String connectionId, final byte[] pduBytes) {
+    final Deliver saved = deliverRepository.save(getDeliver(timestamp, connectionId, pduBytes));
     LOG.debug("The message was saved to database with id {}", saved.getId());
   }
 
@@ -41,9 +42,10 @@ public class StorageService {
     return deliverRepository.streamAll();
   }
 
-  private Deliver getDeliver(final long timestamp, final byte[] pduBytes) {
+  private Deliver getDeliver(final long timestamp, final String connectionId, final byte[] pduBytes) {
     final Deliver deliver = new Deliver();
     deliver.setTimestamp(Instant.ofEpochMilli(timestamp));
+    deliver.setConnectionId(connectionId);
     deliver.setPdu(pduBytes);
     return deliver;
   }

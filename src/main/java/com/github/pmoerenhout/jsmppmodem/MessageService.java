@@ -2,9 +2,8 @@ package com.github.pmoerenhout.jsmppmodem;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import org.ajwcc.pduutils.gsm0340.Pdu;
-import org.ajwcc.pduutils.gsm0340.PduParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,18 +11,23 @@ import com.github.pmoerenhout.atcommander.api.SerialException;
 import com.github.pmoerenhout.atcommander.basic.exceptions.ResponseException;
 import com.github.pmoerenhout.atcommander.basic.exceptions.TimeoutException;
 import com.github.pmoerenhout.atcommander.module._3gpp.EtsiModem;
-import com.github.pmoerenhout.atcommander.module._3gpp.types.ListMessage;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexMessage;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexPduMessage;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.Message;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.PduMessage;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageMode;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageStatus;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.service.PduService;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
+import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
 
 public class MessageService {
 
   // https://en.wikipedia.org/wiki/GSM_03.40
 
-  private static final Logger LOG = LoggerFactory.getLogger(MessageService.class);
+  private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
   private EtsiModem modem;
   private MessageMode messageMode;
@@ -71,48 +75,69 @@ public class MessageService {
     if (teCharacterSet == null) {
       teCharacterSet = modem.getTeCharacterSet();
     }
-    LOG.info("The TE characterset is {}", teCharacterSet);
+    log.info("The TE characterset is {}", teCharacterSet);
   }
 
   public void setSelectTECharacterSet() throws ResponseException, SerialException, TimeoutException {
-    LOG.info("TE: {}", modem.getTeCharacterSet());
+    log.info("TE: {}", modem.getTeCharacterSet());
     modem.setTeCharacterSet("IRA");
     // [GSM, IRA, 8859-1, PCCP437, UCS2, HEX]
-    LOG.info("test: {}", modem.getTeCharacterSets());
-    LOG.info("TE: {}", modem.getTeCharacterSet());
+    log.info("test: {}", modem.getTeCharacterSets());
+    log.info("TE: {}", modem.getTeCharacterSet());
   }
 
   public void sendPduMessage(final String destination, final int sequence) throws ResponseException, SerialException, TimeoutException {
     final String text = "KORE " + String.format("%03d", sequence) + "   " + LocalDateTime.now();
     final byte[] pdu = PduService.createSmsSubmitPdu(destination, text);
-    LOG.debug("PDU[{}]: {}", pdu.length, Util.bytesToHexString(pdu));
+    log.debug("PDU[{}]: {}", pdu.length, Util.bytesToHexString(pdu));
     setPduMessageMode();
     modem.sendPdu((pdu.length) - (pdu[0] + 1), Util.bytesToHexString(pdu));
-    LOG.info("Send {}: '{}'", sequence, text);
+    log.info("Send {}: '{}' to {}", sequence, text, destination);
+  }
+
+  public void sendBinaryPduMessage(final String destination, final byte[] data) throws ResponseException, SerialException, TimeoutException {
+    final byte[] pdu = PduService.createSmsSubmitBinaryPdu(destination, data);
+    log.debug("PDU[{}]: {}", pdu.length, Util.bytesToHexString(pdu));
+    setPduMessageMode();
+    modem.sendPdu((pdu.length) - (pdu[0] + 1), Util.bytesToHexString(pdu));
+    log.info("Send: '{}' to {}", Util.bytesToHexString(pdu), destination);
   }
 
   public void showAllMessages() throws ResponseException, SerialException, TimeoutException {
-    final List<ListMessage> messages = getAllMessages();
-    LOG.info("Found {} messages", messages.size());
+    final List<IndexPduMessage> messages = getAllMessages();
+    log.info("Found {} messages", messages.size());
     messages.forEach(m -> {
       final PduParser pduParser = new PduParser();
       final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      LOG.info("Message: PDU:{}", m.getPdu());
-      LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+      log.info("Message PDU: {}", m.getPdu());
+      log.info("SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
           pdu.getDecodedText());
     });
   }
 
-  public void sendAllMessagesViaSmpp() throws ResponseException, SerialException, TimeoutException {
-    final List<ListMessage> messages = getAllMessages();
-    LOG.info("Found {} messages", messages.size());
+  public void getMessage(final String connectionId, final String storage, final int index) throws ResponseException, SerialException, TimeoutException {
+    final PduMessage pduMessage = readSms(connectionId, index);
+    log.info("Found PDU message: {}", pduMessage.getPdu());
+
+    final PduParser pduParser = new PduParser();
+    final Pdu pdu = pduParser.parsePdu(pduMessage.getPdu());
+    log.info("Message PDU: {}", pduMessage.getPdu());
+    log.info("SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+        pdu.getDecodedText());
+
+    ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+  }
+
+  public void sendAllMessagesViaSmpp(final String connectionId) throws ResponseException, SerialException, TimeoutException {
+    final List<IndexPduMessage> messages = getAllMessages();
+    log.info("Found {} messages", messages.size());
     messages.forEach(m -> {
       final PduParser pduParser = new PduParser();
       final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      LOG.info("Message: Index:{} Status:{} PDU:{}", m.getIndex(), m.getStatus(), m.getPdu());
-      LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+      log.info("Message: Index:{} Status:{} PDU:{}", m.getIndex(), m.getStatus(), m.getPdu());
+      log.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
           pdu.getDecodedText());
-      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, Util.hexToByteArray(m.getPdu())));
+      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(m.getPdu())));
     });
   }
 
@@ -130,11 +155,19 @@ public class MessageService {
 //    return deliver;
 //  }
 
-  public List<ListMessage> getAllMessages() throws ResponseException, SerialException, TimeoutException {
-    return getMessages(MessageStatus.ALL);
+  public List<IndexPduMessage> getAllMessages() throws ResponseException, SerialException, TimeoutException {
+    return getMessages(MessageStatus.ALL).stream().map(m -> (IndexPduMessage) m).collect(Collectors.toList());
   }
 
-  public List<ListMessage> getMessages(final MessageStatus messageStatus) throws ResponseException, SerialException, TimeoutException {
+  public List<IndexMessage> getMessages(final MessageStatus messageStatus) throws ResponseException, SerialException, TimeoutException {
     return modem.getMessagesList(messageStatus);
+  }
+
+  public PduMessage readSms(final String connectionId, final int index) throws ResponseException, SerialException, TimeoutException {
+    final Message message = modem.readSms(index).getMessage();
+    if (message instanceof PduMessage) {
+      return (PduMessage) message;
+    }
+    throw new IllegalStateException("SMS not in PDU mode");
   }
 }

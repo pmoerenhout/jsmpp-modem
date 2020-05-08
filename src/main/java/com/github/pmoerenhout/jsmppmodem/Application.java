@@ -3,12 +3,14 @@ package com.github.pmoerenhout.jsmppmodem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -29,7 +31,7 @@ import com.github.pmoerenhout.jsmppmodem.smsc.SmppService;
 @SpringBootApplication
 public class Application {
 
-  final static Logger LOG = LoggerFactory.getLogger(Application.class);
+  final static Logger log = LoggerFactory.getLogger(Application.class);
 
   @Autowired
   private ModemService modemService;
@@ -72,8 +74,8 @@ public class Application {
   @Bean
   public CommandLineRunner commandLineRunner(final ApplicationContext ctx) {
     return args -> {
-      LOG.info("Let's inspect the beans provided by Spring Boot:");
-      Arrays.asList(ctx.getBeanDefinitionNames()).stream().sorted().forEach(b -> LOG.debug("Bean name: {}", b));
+      log.info("Let's inspect the beans provided by Spring Boot:");
+      Arrays.asList(ctx.getBeanDefinitionNames()).stream().sorted().forEach(b -> log.debug("Bean name: {}", b));
     };
   }
 
@@ -93,10 +95,14 @@ public class Application {
 
   @Bean
   @Qualifier("modems")
-  public List<Modem> getModems() {
+  public List<Modem> getModems(@Value("${modem.port}") final String port, @Value("${modem.speed:115200}") final int speed) {
     final List<Modem> modems = new ArrayList<>();
-    modems.add(new Modem("3ebe0c73-5f87-4c0c-96f6-91f8cd1c0088", "/dev/tty.usbserial-00101314B", 115200));
+    modems.add(getModem(port, speed));
     return modems;
+  }
+
+  public Modem getModem(final String port, final int speed) {
+    return new Modem(UUID.randomUUID().toString(), port, speed);
   }
 
   @Bean
@@ -112,16 +118,21 @@ public class Application {
 
   @Bean(name = "threadPoolTaskExecutor")
   public Executor threadPoolTaskExecutor() {
-    return new ThreadPoolTaskExecutor();
+    final ThreadPoolTaskExecutor threadPoolTaskExecutor = new ThreadPoolTaskExecutor();
+    threadPoolTaskExecutor.setCorePoolSize(5);
+    threadPoolTaskExecutor.setMaxPoolSize(10);
+    threadPoolTaskExecutor.setQueueCapacity(25);
+    threadPoolTaskExecutor.setThreadNamePrefix("thread-");
+    return threadPoolTaskExecutor;
   }
 
   @Bean
   public Executor asyncExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(2);
-    executor.setMaxPoolSize(2);
+    executor.setCorePoolSize(5);
+    executor.setMaxPoolSize(5);
     executor.setQueueCapacity(500);
-    executor.setThreadNamePrefix("GithubLookup-");
+    executor.setThreadNamePrefix("async-");
     executor.initialize();
     return executor;
   }
