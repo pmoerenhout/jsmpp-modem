@@ -1,7 +1,10 @@
 package com.github.pmoerenhout.jsmppmodem;
 
+import static jssc.SerialPort.FLOWCONTROL_NONE;
 import static jssc.SerialPort.FLOWCONTROL_RTSCTS_IN;
 import static jssc.SerialPort.FLOWCONTROL_RTSCTS_OUT;
+import static jssc.SerialPort.FLOWCONTROL_XONXOFF_IN;
+import static jssc.SerialPort.FLOWCONTROL_XONXOFF_OUT;
 
 import java.util.Objects;
 
@@ -17,12 +20,24 @@ public class Modem {
   private String port;
   private int speed;
 
-  public Modem(final String id, final String port, final int speed) {
+  public Modem(final String id, final String port, final int speed, final FlowControl flowControl) {
     this.id = id;
     this.port = port;
     this.speed = speed;
-    this.threegppModem = new EtsiModem(
-        new JsscSerial(port, speed, FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT, new UnsolicitedCallback(id)));
+    switch (flowControl) {
+      case NONE:
+        this.threegppModem = new EtsiModem(
+            new JsscSerial(port, speed, FLOWCONTROL_NONE, new UnsolicitedCallback(id)));
+        break;
+      case RTSCTS:
+        this.threegppModem = new EtsiModem(
+            new JsscSerial(port, speed, FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT, new UnsolicitedCallback(id)));
+        break;
+      case XONXOFF:
+        this.threegppModem = new EtsiModem(
+            new JsscSerial(port, speed, FLOWCONTROL_XONXOFF_IN | FLOWCONTROL_XONXOFF_OUT, new UnsolicitedCallback(id)));
+        break;
+    }
   }
 
   public String getId() {

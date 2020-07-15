@@ -6,10 +6,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.github.pmoerenhout.atcommander.api.InitException;
@@ -19,14 +22,22 @@ import com.github.pmoerenhout.atcommander.basic.exceptions.TimeoutException;
 import com.github.pmoerenhout.atcommander.module._3gpp.EtsiModem;
 import com.github.pmoerenhout.atcommander.module._3gpp.RegistrationState;
 import com.github.pmoerenhout.atcommander.module._3gpp.commands.NetworkRegistrationResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.exceptions.CmeErrorException;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexPduMessage;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.PduMessage;
 import com.github.pmoerenhout.atcommander.module.v250.enums.OperatorSelectionMode;
 import com.github.pmoerenhout.atcommander.module.v250.enums.PinStatus;
 import com.github.pmoerenhout.atcommander.module.v250.exceptions.RegistrationFailedException;
-import com.github.pmoerenhout.jsmppmodem.events.ReceivedMessageIndicationEvent;
+import com.github.pmoerenhout.jsmppmodem.events.MessageTerminatingIndicationEvent;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsDeliveryPduEvent;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsStatusReportPduEvent;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
 import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsStatusReportPdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
 
 @Service
 public class ModemService {
@@ -47,10 +58,13 @@ public class ModemService {
 
   private StorageService storageService;
 
+  private ApplicationEventPublisher applicationEventPublisher;
+
   @Autowired
-  public ModemService(final List<Modem> modems, final StorageService storageService) {
+  public ModemService(final List<Modem> modems, final StorageService storageService, final ApplicationEventPublisher applicationEventPublisher) {
     this.modems = modems;
     this.storageService = storageService;
+    this.applicationEventPublisher = applicationEventPublisher;
     log.info("Found {} serial connection(s) configurations", modems.size());
   }
 
@@ -86,13 +100,29 @@ public class ModemService {
       etsiModem.init();
       //etsiModem.getSimpleCommand(new String(new byte[]{ (byte) 0x1a }));
       etsiModem.getAttention();
+      // etsiModem.getI
       manufacturerIdentification = etsiModem.getManufacturerIdentification();
+
+      final boolean isSonyEricsson = (manufacturerIdentification.contains("SONY ERICSSON"));
+
       revisionIdentification = etsiModem.getRevisionIdentification();
-      serialNumber = etsiModem.getSerialNumber();
+      if (!isSonyEricsson) {
+        serialNumber = etsiModem.getSerialNumber();
+      }
       productSerialNumberIdentification = etsiModem.getProductSerialNumberIdentification();
       etsiModem.setMobileEquipmentError(2);
-      etsiModem.setCellularResultCodes(true);
-      etsiModem.getSimpleCommand("AT+CMER=2").set();
+      if (isSonyEricsson) {
+        etsiModem.setCellularResultCodes(true);
+      }
+
+      log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
+
+      log.info("Manufacturer: {}", manufacturerIdentification);
+      log.info("Revision identification: {}", revisionIdentification);
+      log.info("Serial number: {}", serialNumber);
+      log.info("Product serial number identification: {}", productSerialNumberIdentification);
+
+      log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
 
       final PinStatus pinStatus = etsiModem.getPinStatus();
       switch (pinStatus) {
@@ -101,22 +131,50 @@ public class ModemService {
           break;
       }
 
-      imsi = etsiModem.getInternationalMobileSubscriberIdentity();
-      log.info("Manufacturer: {}", manufacturerIdentification);
-      log.info("Revision identification: {}", revisionIdentification);
-      log.info("Serial number: {}", serialNumber);
-      log.info("Product serial number identification: {}", productSerialNumberIdentification);
-      log.info("IMSI: {}", imsi);
+      log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
+
+      if (isSonyEricsson) {
+        // +CMER=[<mode>[,<keyp>[,<disp>[,<ind>[,<bfr>]]]]]
+        // +CMER: (0,3),(0,2),0,(0-1),0
+        etsiModem.getSimpleCommand("AT+CMER=3,0,0,0,0").set();
+      } else {
+        etsiModem.getSimpleCommand("AT+CMER=2").set();
+      }
+
+      while (StringUtils.isBlank(imsi)) {
+        try {
+          imsi = etsiModem.getInternationalMobileSubscriberIdentity();
+          log.info("IMSI: {}", imsi);
+        } catch (CmeErrorException e) {
+          log.info("Error reading IMSI: {}", e.getMessage());
+          Thread.sleep(500);
+        }
+      }
+
+      log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
 
       // etsiModem.getSimpleCommand("AT#SELINT=2").set();
       // etsiModem.getSimpleCommand("AT#SMSMODE=2").set();
-      etsiModem.setNetworkRegistration(2);
+
+      if (isSonyEricsson) {
+        etsiModem.setNetworkRegistration(1);
+      } else {
+        etsiModem.setNetworkRegistration(2);
+      }
 //      etsiModem.setNewMessageIndications(2, 3, 2, 2, 0);
       //etsiModem.setNewMessageIndications(1, 2, 0, 0, 0);
-      etsiModem.setNewMessageIndications(1, 2, 0, 0, 0);
+
+      if (isSonyEricsson) {
+        // +CNMI: (2),(0,1,3),(0,2),(0),(0)
+        // AT+CNMI=2,3,0,0,0
+        etsiModem.setNewMessageIndications(2, 1, 0, 0, 0);
+      } else {
+        // Quectel: +CNMI: (0-2),(0-3),(0,2),(0-2),(0,1)
+        etsiModem.setNewMessageIndications(2, 1, 2, 1, 0);
+        // etsiModem.setNewMessageIndications(2, 2, 2, 1, 0);
+      }
       // USSD enable the result code presentation to the TE
       etsiModem.setUssd(1);
-      // etsiModem.setNewMessageIndications(2,3 );
       // modem.setOperatorSelection(OperatorSelectionMode.AUTOMATIC);
       waitForAutomaticRegistration(etsiModem);
       log.info("Network registration state: {}", etsiModem.getNetworkRegistration().getRegistrationState());
@@ -132,8 +190,20 @@ public class ModemService {
       messageService.setIraTeCharacterSet();
       messageService.showAllMessages();
 
+      // TODO: Connection ID
+      modems.forEach(m -> {
+        try {
+          messageService.sendAllMessagesViaSmpp(m.getId());
+        } catch (Exception e) {
+          log.error("Could not send all messages", e);
+        }
+      });
+
       modem.set3gppModem(etsiModem);
       modem.setMessageService(messageService);
+
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (final Exception e) {
       log.error("Init error", e);
       throw new InitException("Could not initialise the modem", e);
@@ -147,12 +217,14 @@ public class ModemService {
     });
   }
 
+  @Async
   @EventListener
-  public void handleReceivedMTEvent(final ReceivedMessageIndicationEvent event) throws Exception {
-    log.debug("Received MT: {} {}", event.getStorage(), event.getStorage());
+  public void handleReceivedMessageIndication(final MessageTerminatingIndicationEvent event) throws Exception {
+    log.debug("Received MTI: {} {}", event.getStorage(), event.getIndex());
     final String connectionId = event.getConnectionId();
     final Modem modem = modems.stream().filter(m -> m.getId() == connectionId).findFirst().orElseThrow(() -> new RuntimeException("modem not found"));
-    modem.getMessageService().readSms(event.getConnectionId(), event.getIndex());
+    final PduMessage message = modem.getMessageService().readSms(event.getConnectionId(), event.getIndex());
+    applicationEventPublisher.publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(message.getPdu())));
   }
 
   public void send(final Modem modem, final String destination, final int numberOfSms) {
@@ -168,6 +240,15 @@ public class ModemService {
       });
     } catch (final Exception e) {
       log.error("The modem had an error", e);
+    }
+  }
+
+  public void sendText(final Modem modem, final String destination, final String text) {
+    log.info("Send text message to {}: {}", destination, text);
+    try {
+      modem.getMessageService().sendTextMessage(destination, text);
+    } catch (Exception e) {
+      log.info("Could not send short message", e);
     }
   }
 
@@ -198,17 +279,30 @@ public class ModemService {
 
   public void storeAllMessages(final Modem modem) throws ResponseException, SerialException, TimeoutException {
     final List<IndexPduMessage> messages = modem.getMessageService().getAllMessages();
+//    messages.stream().findFirst().ifPresent(m -> {
+//      final PduParser pduParser = new PduParser();
+//      final Pdu pdu = pduParser.parsePdu(m.getPdu());
+//      if (pdu instanceof SmsDeliveryPdu) {
+//        log.debug("DELIVERY:{} SCTS:{} SMSC:{} ADDRESS:{} DCS:{}/{} TEXT:'{}'",
+//            ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
+//            pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+//            pdu.getDecodedText());
+//      }
+//    });
     messages.forEach(m -> {
       final PduParser pduParser = new PduParser();
       final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      log.info("SMSC:{} ADDRESS:{} DCS:{}/{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
-          pdu.getDecodedText());
+      if (pdu instanceof SmsDeliveryPdu) {
+        log.debug("DELIVERY:{} SCTS:{} SMSC:{} ADDRESS:{} DCS:{}/{} TEXT:'{}'",
+            ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
+            pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+            pdu.getDecodedText());
+      }
     });
-    messages.forEach(m ->
+    messages.stream().findFirst().ifPresent(m ->
         storageService.save(Instant.now().toEpochMilli(), modem.getId(), Util.hexToByteArray(m.getPdu()))
     );
   }
-
 
   public void deleteAllMessage(final Modem modem) throws ResponseException, SerialException, TimeoutException {
     log.info("Delete all messages");
@@ -255,4 +349,28 @@ public class ModemService {
     return false;
   }
 
+  @EventListener
+  public void handleReceivedPdu(final ReceivedPduEvent event) throws Exception {
+    final PduParser pduParser = new PduParser();
+    final Pdu pdu = pduParser.parsePdu(Util.bytesToHexString(event.getPdu()));
+    if (pdu instanceof SmsDeliveryPdu) {
+      log.info("DELIVERY: SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
+          ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
+          pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+          pdu.getProtocolIdentifier(),
+          pdu.getDecodedText());
+      applicationEventPublisher.publishEvent(new ReceivedSmsDeliveryPduEvent(this, event.getConnectionId(), event.getPdu()));
+    } else if (pdu instanceof SmsStatusReportPdu) {
+      log.info("STATUS-REPORT: SMSC:{} ADDRESS:{} DCS:{} PID:{}", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+          pdu.getProtocolIdentifier());
+      applicationEventPublisher.publishEvent(new ReceivedSmsStatusReportPduEvent(this, event.getConnectionId(), event.getPdu()));
+    } else if (pdu instanceof SmsSubmitPdu) {
+      log.info("SUBMIT: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+          pdu.getProtocolIdentifier(),
+          pdu.getDecodedText());
+      log.info("SMS-SUBMIT is not handled");
+    } else {
+      throw new IllegalArgumentException("The class " + pdu.getClass().getName() + " is unknown");
+    }
+  }
 }

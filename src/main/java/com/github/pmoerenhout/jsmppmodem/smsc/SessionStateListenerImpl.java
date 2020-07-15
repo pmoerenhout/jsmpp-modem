@@ -33,18 +33,16 @@ public class SessionStateListenerImpl implements SessionStateListener {
   private List<SMPPServerSession> sessions;
 
   public SessionStateListenerImpl(final List<SMPPServerSession> sessions) {
-    LOG.info("Sessions {}", sessions.getClass().getName());
     this.sessions = sessions;
   }
 
   public void addServerSession(final SMPPServerSession session) {
-    LOG.info("Add server sessions {}", session);
+    LOG.info("Add server session {}", session);
     this.sessions.add(session);
   }
 
   public void onStateChange(final SessionState newState, final SessionState oldState, final Session session) {
     LOG.info("Session {} changed from {} to {}", session.getSessionId(), oldState, newState);
-    LOG.info("Session {} {}", session.getSessionId(), session.getClass().getSimpleName());
     SMPPServerSession serverSession = (SMPPServerSession) session;
     if (!sessions.contains(session)) {
       sessions.add(serverSession);

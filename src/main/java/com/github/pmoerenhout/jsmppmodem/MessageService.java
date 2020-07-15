@@ -18,10 +18,16 @@ import com.github.pmoerenhout.atcommander.module._3gpp.types.PduMessage;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageMode;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageStatus;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsDeliveryPduEvent;
+import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsStatusReportPduEvent;
 import com.github.pmoerenhout.jsmppmodem.service.PduService;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
 import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsStatusReportPdu;
+import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
+import com.github.pmoerenhout.pduutils.wappush.WapSiPdu;
 
 public class MessageService {
 
@@ -95,6 +101,14 @@ public class MessageService {
     log.info("Send {}: '{}' to {}", sequence, text, destination);
   }
 
+  public void sendTextMessage(final String destination, final String text) throws ResponseException, SerialException, TimeoutException {
+    final byte[] pdu = PduService.createSmsSubmitPdu(destination, text);
+    log.debug("PDU[{}]: {}", pdu.length, Util.bytesToHexString(pdu));
+    setPduMessageMode();
+    modem.sendPdu((pdu.length) - (pdu[0] + 1), Util.bytesToHexString(pdu));
+    log.info("Send '{}' to {}", text, destination);
+  }
+
   public void sendBinaryPduMessage(final String destination, final byte[] data) throws ResponseException, SerialException, TimeoutException {
     final byte[] pdu = PduService.createSmsSubmitBinaryPdu(destination, data);
     log.debug("PDU[{}]: {}", pdu.length, Util.bytesToHexString(pdu));
@@ -108,36 +122,64 @@ public class MessageService {
     log.info("Found {} messages", messages.size());
     messages.forEach(m -> {
       final PduParser pduParser = new PduParser();
+      // log.trace("PDU: {}", m.getPdu());
       final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      log.info("Message PDU: {}", m.getPdu());
-      log.info("SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
-          pdu.getDecodedText());
+      log.trace("{}: {}", getTpduType(pdu), m.getPdu());
+      if (pdu instanceof SmsDeliveryPdu) {
+        log.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+            pdu.getProtocolIdentifier(),
+            pdu.getDecodedText());
+      } else if (pdu instanceof SmsStatusReportPdu) {
+        log.info("STATUS-REPORT: SMSC:{} ADDRESS:{} DCS:{} PID:{}", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+            pdu.getProtocolIdentifier());
+      } else if (pdu instanceof SmsSubmitPdu) {
+        log.info("SUBMIT: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+            pdu.getProtocolIdentifier(),
+            pdu.getDecodedText());
+      } else {
+        log.info("?? SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+            pdu.getProtocolIdentifier());
+      }
     });
   }
+
 
   public void getMessage(final String connectionId, final String storage, final int index) throws ResponseException, SerialException, TimeoutException {
     final PduMessage pduMessage = readSms(connectionId, index);
     log.info("Found PDU message: {}", pduMessage.getPdu());
-
     final PduParser pduParser = new PduParser();
     final Pdu pdu = pduParser.parsePdu(pduMessage.getPdu());
-    log.info("Message PDU: {}", pduMessage.getPdu());
-    log.info("SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
-        pdu.getDecodedText());
-
-    ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+    if (pdu instanceof SmsDeliveryPdu) {
+      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+    } else if (pdu instanceof SmsStatusReportPdu) {
+      ApplicationContextProvider.getApplicationContext()
+          .publishEvent(new ReceivedSmsStatusReportPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+    }
   }
 
   public void sendAllMessagesViaSmpp(final String connectionId) throws ResponseException, SerialException, TimeoutException {
     final List<IndexPduMessage> messages = getAllMessages();
-    log.info("Found {} messages", messages.size());
+    log.info("Send all via SMPP, found {} messages", messages.size());
     messages.forEach(m -> {
       final PduParser pduParser = new PduParser();
       final Pdu pdu = pduParser.parsePdu(m.getPdu());
       log.info("Message: Index:{} Status:{} PDU:{}", m.getIndex(), m.getStatus(), m.getPdu());
       log.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
           pdu.getDecodedText());
-      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(m.getPdu())));
+      if (pdu instanceof SmsDeliveryPdu) {
+        log.info("SMS-DELIVERY SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
+            ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
+            pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(), pdu.getDecodedText());
+        ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedSmsDeliveryPduEvent(this, connectionId, Util.hexToByteArray(m.getPdu())));
+      } else if (pdu instanceof SmsStatusReportPdu) {
+        log.info("SMS-STATUS-REPORT SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
+            ((SmsStatusReportPdu) pdu).getDischargeTime(),
+            pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(), pdu.getDecodedText());
+        ApplicationContextProvider.getApplicationContext()
+            .publishEvent(new ReceivedSmsStatusReportPduEvent(this, connectionId, Util.hexToByteArray(m.getPdu())));
+      } else if (pdu instanceof SmsSubmitPdu) {
+        log.info("Not handle SMS-SUBMIT");
+      }
     });
   }
 
@@ -169,5 +211,21 @@ public class MessageService {
       return (PduMessage) message;
     }
     throw new IllegalStateException("SMS not in PDU mode");
+  }
+
+  private String getTpduType(final Pdu pdu) {
+    if (pdu instanceof SmsSubmitPdu) {
+      return "SMS-SUBMIT";
+    }
+    if (pdu instanceof SmsStatusReportPdu) {
+      return "SMS-STATUS-REPORT";
+    }
+    if (pdu instanceof SmsDeliveryPdu) {
+      return "SMS-DELIVERY";
+    }
+    if (pdu instanceof WapSiPdu) {
+      return "WAP-SI-PUSH";
+    }
+    throw new IllegalArgumentException("Type is unknown");
   }
 }

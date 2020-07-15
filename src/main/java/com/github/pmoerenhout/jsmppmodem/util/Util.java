@@ -189,4 +189,19 @@ public class Util {
   public static Integer defaultIfNull(final Integer integer, final Integer defaultInteger) {
     return integer == null ? defaultInteger : integer;
   }
+
+  public static String onlyPrintable(final byte[] buf) {
+    final int l = buf.length;
+    final StringBuilder sb = new StringBuilder(l);
+    for (int i = 0; i < l; i++) {
+      final byte b = buf[i];
+      if (b >= 32 && b < 127) {
+        sb.append((char) b);
+      } else {
+        sb.append(String.format("<%02x>", b));
+      }
+    }
+    return sb.toString();
+  }
+
 }

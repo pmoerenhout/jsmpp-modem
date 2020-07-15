@@ -3,8 +3,18 @@ spring:
     enabled: false
 
 modem:
-  port: /dev/tty.usbserial-A40090EW
+#  port: /dev/tty.usbserial-A40090EW
+#  speed: 115200
+#  flow-control: RTSCTS
+#  port: /dev/tty.Marie-Louise-SerialPort1
+#  speed: 115200
+#  flow-control: NONE
+#  port: /dev/tty.usbmodem14207
+#  speed: 7200000
+#  flow-control: RTSCTS
+  port: /dev/ttyUSB2
   speed: 115200
+  flow-control: NONE
 
 smpp:
   service-type: CMT
@@ -13,10 +23,38 @@ smpp:
   port: 2075
   bind-timeout: 5000
   enquire-link-timer: 300000
-  transaction-timer: 60000
+  transaction-timer: 15000
 
 logging:
+  file:
+    name: /var/opt/jsmpp-modem/jsmpp-modem.log
   level:
-    com.github.pmoerenhout.atcommander: debug
+    com.github.pmoerenhout.atcommander: info
+    com.github.pmoerenhout.jsmpp-pool: info
     com.github.pmoerenhout: info
-    org.jsmpp: trace
+    org.jsmpp: debug
+
+---
+
+spring:
+  profiles: development
+
+modem:
+#  port: /dev/tty.usbserial-A40090EW
+#  speed: 115200
+#  flow-control: RTSCTS
+#  port: /dev/tty.Marie-Louise-SerialPort1
+#  speed: 115200
+#  flow-control: NONE
+  port: /dev/tty.usbmodem14207
+  speed: 7200000
+  flow-control: RTSCTS
+
+  logging:
+    file:
+      name:
+    level:
+      com.github.pmoerenhout.atcommander: trace
+      com.github.pmoerenhout.jsmpp-pool: info
+      com.github.pmoerenhout: info
+      org.jsmpp: debug

@@ -23,7 +23,11 @@ public class PduService {
 //    pdu.setSmscAddress("316540998300");
 //    pdu.setSmscAddressType(17);
     pdu.setAddress(new MsIsdn(address));
-    pdu.setAddressType(0x11);
+    if (address.length() <= 5) {
+      pdu.setAddressType(0x00);
+    } else {
+      pdu.setAddressType(0x11);
+    }
     pdu.setDecodedText(text);
     pdu.setDataCodingScheme(0);
     pdu.setProtocolIdentifier(0);
@@ -53,18 +57,24 @@ public class PduService {
     LOG.info("HEX: {}", hex);
     final Pdu pdu = pduParser.parsePdu(hex);
     LOG.info("Message: PDU:{} ({})", hex, pdu.getClass().getSimpleName());
-    LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
-        pdu.getDecodedText());
+    if (pdu instanceof SmsDeliveryPdu) {
+      LOG.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+          pdu.getDecodedText());
+    } else {
+      LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier());
+    }
     LOG.info("SMSC            : 0x{} '{}'", String.format("%02X", pdu.getSmscAddressType()), pdu.getSmscAddress());
     LOG.info("TP-MTI          : '{}'", String.format("%02X", pdu.getTpMti()));
     LOG.info("TP-UDHI         : {}", pdu.hasTpUdhi());
     LOG.info("TP-DCS          : '{}'", String.format("%02X", pdu.getDataCodingScheme()));
     LOG.info("TP-PID          : '{}'", String.format("%02X", pdu.getProtocolIdentifier()));
-    LOG.info("Orig Address    : 0x{} '{}'", String.format("%02X",pdu.getAddressType()), pdu.getAddress());
+    LOG.info("Orig Address    : 0x{} '{}'", String.format("%02X", pdu.getAddressType()), pdu.getAddress());
     LOG.info("UD              : '{}'", Util.bytesToHexString(pdu.getUDData()));
     LOG.info("UDH             : '{}'", Util.bytesToHexString(pdu.getUDHData()));
-    LOG.info("UD (without UDH): '{}'", Util.bytesToHexString(pdu.getUserDataAsBytes()));
-    LOG.info("TotalUDHLength  : {}", pdu.getTotalUDHLength());
+    if (pdu.getUDData() != null) {
+      LOG.info("UD (without UDH): '{}'", Util.bytesToHexString(pdu.getUserDataAsBytes()));
+      LOG.info("TotalUDHLength  : {}", pdu.getTotalUDHLength());
+    }
     if (pdu instanceof SmsDeliveryPdu) {
       final SmsDeliveryPdu smsDeliveryPdu = (SmsDeliveryPdu) pdu;
       LOG.info("TP-MSS          : '{}'", smsDeliveryPdu.hasTpMms());

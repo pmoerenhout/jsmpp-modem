@@ -107,6 +107,7 @@ public class DeliverSmTask implements Runnable {
       }
     } catch (InterruptedException e) {
       LOG.error("The delivery_sm task was interrupted", e);
+      Thread.currentThread().interrupt();
     }
   }
 }

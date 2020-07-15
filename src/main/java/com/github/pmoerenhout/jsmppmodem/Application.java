@@ -8,8 +8,6 @@ import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -24,8 +22,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
-import com.github.pmoerenhout.jsmppmodem.smsc.SmppService;
-
 @EnableAsync
 @EnableScheduling
 @SpringBootApplication
@@ -33,16 +29,17 @@ public class Application {
 
   final static Logger log = LoggerFactory.getLogger(Application.class);
 
-  @Autowired
-  private ModemService modemService;
-
-  @Autowired
-  private SmppService smppService;
+//  @Autowired
+//  private ModemService modemService;
+//
+//  @Autowired
+//  private SmppService smppService;
 
   public static void main(final String[] args) {
+    log.info("Main with arguments {}", args);
     final SpringApplication app = new SpringApplication(Application.class);
     app.setWebApplicationType(WebApplicationType.NONE);
-    // app.setHeadless(true);
+    app.setHeadless(true);
     ConfigurableApplicationContext ctx = app.run(args);
   }
 
@@ -93,47 +90,47 @@ public class Application {
     return filter;
   }
 
-  @Bean
-  @Qualifier("modems")
-  public List<Modem> getModems(@Value("${modem.port}") final String port, @Value("${modem.speed:115200}") final int speed) {
+  @Bean("modems")
+  public List<Modem> getModems(@Value("${modem.port}") final String port,
+                               @Value("${modem.speed:115200}") final int speed,
+                               @Value("${modem.flow-control:RTSCTS}") final FlowControl flowControl) {
     final List<Modem> modems = new ArrayList<>();
-    modems.add(getModem(port, speed));
+    modems.add(getModem(port, speed, flowControl));
     return modems;
   }
 
-  public Modem getModem(final String port, final int speed) {
-    return new Modem(UUID.randomUUID().toString(), port, speed);
+  public Modem getModem(final String port, final int speed, final FlowControl flowControl) {
+    return new Modem(UUID.randomUUID().toString(), port, speed, flowControl);
   }
 
-  @Bean
-  @Qualifier("smppTaskExecutor")
-  public TaskExecutor getSmppTaskExecutor() {
+  @Bean("smppTaskExecutor")
+  public TaskExecutor smppTaskExecutor() {
     final ThreadPoolTaskExecutor threadPoolTaskExecutor = new ThreadPoolTaskExecutor();
-    threadPoolTaskExecutor.setCorePoolSize(5);
-    threadPoolTaskExecutor.setMaxPoolSize(10);
+    threadPoolTaskExecutor.setCorePoolSize(2);
+    threadPoolTaskExecutor.setMaxPoolSize(5);
     threadPoolTaskExecutor.setQueueCapacity(25);
     threadPoolTaskExecutor.setThreadNamePrefix("smpp-");
     return threadPoolTaskExecutor;
   }
 
-  @Bean(name = "threadPoolTaskExecutor")
+  @Bean("taskExecutor")
   public Executor threadPoolTaskExecutor() {
     final ThreadPoolTaskExecutor threadPoolTaskExecutor = new ThreadPoolTaskExecutor();
-    threadPoolTaskExecutor.setCorePoolSize(5);
-    threadPoolTaskExecutor.setMaxPoolSize(10);
+    threadPoolTaskExecutor.setCorePoolSize(2);
+    threadPoolTaskExecutor.setMaxPoolSize(5);
     threadPoolTaskExecutor.setQueueCapacity(25);
     threadPoolTaskExecutor.setThreadNamePrefix("thread-");
     return threadPoolTaskExecutor;
   }
 
-  @Bean
-  public Executor asyncExecutor() {
-    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(5);
-    executor.setMaxPoolSize(5);
-    executor.setQueueCapacity(500);
-    executor.setThreadNamePrefix("async-");
-    executor.initialize();
-    return executor;
-  }
+//  @Bean
+//  public Executor asyncExecutor() {
+//    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+//    executor.setCorePoolSize(2);
+//    executor.setMaxPoolSize(5);
+//    executor.setQueueCapacity(500);
+//    executor.setThreadNamePrefix("async-");
+//    executor.initialize();
+//    return executor;
+//  }
 }

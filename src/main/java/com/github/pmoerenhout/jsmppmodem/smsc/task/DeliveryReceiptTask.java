@@ -139,6 +139,7 @@ public class DeliveryReceiptTask implements Runnable {
       }
     } catch (InterruptedException e) {
       LOG.error("The delivery receipt task was interrupted", e);
+      Thread.currentThread().interrupt();
     }
   }
 }
