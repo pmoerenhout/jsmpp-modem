@@ -64,23 +64,23 @@ public class PduService {
       LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier());
     }
     LOG.info("SMSC            : 0x{} '{}'", String.format("%02X", pdu.getSmscAddressType()), pdu.getSmscAddress());
-    LOG.info("TP-MTI          : '{}'", String.format("%02X", pdu.getTpMti()));
+    LOG.info("TP-MTI          : 0x{}", String.format("%02X", pdu.getTpMti()));
     LOG.info("TP-UDHI         : {}", pdu.hasTpUdhi());
-    LOG.info("TP-DCS          : '{}'", String.format("%02X", pdu.getDataCodingScheme()));
-    LOG.info("TP-PID          : '{}'", String.format("%02X", pdu.getProtocolIdentifier()));
+    LOG.info("TP-DCS          : 0x{}", String.format("%02X", pdu.getDataCodingScheme()));
+    LOG.info("TP-PID          : 0x{}", String.format("%02X", pdu.getProtocolIdentifier()));
     LOG.info("Orig Address    : 0x{} '{}'", String.format("%02X", pdu.getAddressType()), pdu.getAddress());
-    LOG.info("UD              : '{}'", Util.bytesToHexString(pdu.getUDData()));
-    LOG.info("UDH             : '{}'", Util.bytesToHexString(pdu.getUDHData()));
+    LOG.info("UD              : {}", Util.bytesToHexString(pdu.getUDData()));
+    LOG.info("UDH             : {}", Util.bytesToHexString(pdu.getUDHData()));
     if (pdu.getUDData() != null) {
-      LOG.info("UD (without UDH): '{}'", Util.bytesToHexString(pdu.getUserDataAsBytes()));
+      LOG.info("UD (without UDH): {}", Util.bytesToHexString(pdu.getUserDataAsBytes()));
       LOG.info("TotalUDHLength  : {}", pdu.getTotalUDHLength());
     }
     if (pdu instanceof SmsDeliveryPdu) {
       final SmsDeliveryPdu smsDeliveryPdu = (SmsDeliveryPdu) pdu;
-      LOG.info("TP-MSS          : '{}'", smsDeliveryPdu.hasTpMms());
-      LOG.info("TP-SRI          : '{}'", smsDeliveryPdu.hasTpSri());
-      LOG.info("TP-RP           : '{}'", smsDeliveryPdu.hasTpRp());
-      LOG.info("TP-SCTS         : '{}'", smsDeliveryPdu.getServiceCentreTimestamp());
+      LOG.info("TP-MSS          : {}", smsDeliveryPdu.hasTpMms());
+      LOG.info("TP-SRI          : {}", smsDeliveryPdu.hasTpSri());
+      LOG.info("TP-RP           : {}", smsDeliveryPdu.hasTpRp());
+      LOG.info("TP-SCTS         : {}", smsDeliveryPdu.getServiceCentreTimestamp());
     }
     return pdu;
   }

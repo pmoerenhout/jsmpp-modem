@@ -121,24 +121,28 @@ public class MessageService {
     final List<IndexPduMessage> messages = getAllMessages();
     log.info("Found {} messages", messages.size());
     messages.forEach(m -> {
-      final PduParser pduParser = new PduParser();
-      // log.trace("PDU: {}", m.getPdu());
-      final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      log.trace("{}: {}", getTpduType(pdu), m.getPdu());
-      if (pdu instanceof SmsDeliveryPdu) {
-        log.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
-            pdu.getProtocolIdentifier(),
-            pdu.getDecodedText());
-      } else if (pdu instanceof SmsStatusReportPdu) {
-        log.info("STATUS-REPORT: SMSC:{} ADDRESS:{} DCS:{} PID:{}", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
-            pdu.getProtocolIdentifier());
-      } else if (pdu instanceof SmsSubmitPdu) {
-        log.info("SUBMIT: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
-            pdu.getProtocolIdentifier(),
-            pdu.getDecodedText());
-      } else {
-        log.info("?? SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
-            pdu.getProtocolIdentifier());
+      try {
+        final PduParser pduParser = new PduParser();
+        log.info("PDU: {}", m.getPdu());
+        final Pdu pdu = pduParser.parsePdu(m.getPdu());
+        log.trace("{}: {}", getTpduType(pdu), m.getPdu());
+        if (pdu instanceof SmsDeliveryPdu) {
+          log.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+              pdu.getProtocolIdentifier(),
+              pdu.getDecodedText());
+        } else if (pdu instanceof SmsStatusReportPdu) {
+          log.info("STATUS-REPORT: SMSC:{} ADDRESS:{} DCS:{} PID:{}", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+              pdu.getProtocolIdentifier());
+        } else if (pdu instanceof SmsSubmitPdu) {
+          log.info("SUBMIT: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+              pdu.getProtocolIdentifier(),
+              pdu.getDecodedText());
+        } else {
+          log.info("?? SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
+              pdu.getProtocolIdentifier());
+        }
+      } catch (Exception e){
+        log.error("Exception during parsing", e);
       }
     });
   }

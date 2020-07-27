@@ -290,13 +290,18 @@ public class ModemService {
 //      }
 //    });
     messages.forEach(m -> {
-      final PduParser pduParser = new PduParser();
-      final Pdu pdu = pduParser.parsePdu(m.getPdu());
-      if (pdu instanceof SmsDeliveryPdu) {
-        log.debug("DELIVERY:{} SCTS:{} SMSC:{} ADDRESS:{} DCS:{}/{} TEXT:'{}'",
-            ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
-            pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
-            pdu.getDecodedText());
+      try {
+        final PduParser pduParser = new PduParser();
+        log.info("PDU: {}", m.getPdu());
+        final Pdu pdu = pduParser.parsePdu(m.getPdu());
+        if (pdu instanceof SmsDeliveryPdu) {
+          log.debug("DELIVERY:{} SCTS:{} SMSC:{} ADDRESS:{} DCS:{}/{} TEXT:'{}'",
+              ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
+              pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+              pdu.getDecodedText());
+        }
+      } catch (Exception e) {
+        log.error("Error in parsing PDU", e);
       }
     });
     messages.stream().findFirst().ifPresent(m ->
@@ -352,6 +357,7 @@ public class ModemService {
   @EventListener
   public void handleReceivedPdu(final ReceivedPduEvent event) throws Exception {
     final PduParser pduParser = new PduParser();
+    log.info("PDU: {}", Util.bytesToHexString(event.getPdu()));
     final Pdu pdu = pduParser.parsePdu(Util.bytesToHexString(event.getPdu()));
     if (pdu instanceof SmsDeliveryPdu) {
       log.info("DELIVERY: SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
