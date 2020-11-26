@@ -12,7 +12,7 @@ modem:
 #  port: /dev/tty.usbmodem14207
 #  speed: 7200000
 #  flow-control: RTSCTS
-  port: /dev/ttyUSB2
+  port: /dev/ttyUSB3
   speed: 115200
   flow-control: NONE
 

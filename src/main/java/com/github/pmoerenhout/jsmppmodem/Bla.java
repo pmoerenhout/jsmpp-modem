@@ -151,7 +151,9 @@ public class Bla implements CommandLineRunner {
           LOG.info("Signal quality: RSSI:{} BER:{}", signalQuality.getRssi(), signalQuality.getBer());
 
           final OperatorSelectionResponse operatorSelection = etsiModem.getOperatorSelection();
-          LOG.info("Operator: {} AcT:{} ({})", operatorSelection.getOper(), AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
+          if (operatorSelection != null) {
+            LOG.info("Operator: {} AcT:{} ({})", operatorSelection.getOper(), AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
+          }
 
         } catch (TimeoutException e) {
           LOG.info("Fetching the network registration failed: {}", e.getMessage());
