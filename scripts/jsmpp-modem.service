@@ -1,0 +1,16 @@
+[Unit]
+Description=jSMPP modem
+After=syslog.target
+
+[Service]
+WorkingDirectory=/home/pi
+#Type=forking
+Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/jsmpp-modem/jsmpp-modem.jar
+#ExecStop=/bin/kill -15 $MAINPID
+SuccessExitStatus=0
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
