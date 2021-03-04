@@ -20,15 +20,13 @@ import org.jsmpp.extra.SessionState;
 import org.jsmpp.session.SMPPServerSession;
 import org.jsmpp.session.Session;
 import org.jsmpp.session.SessionStateListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.pmoerenhout.jsmppmodem.ApplicationContextProvider;
 import com.github.pmoerenhout.jsmppmodem.events.BoundReceiverEvent;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class SessionStateListenerImpl implements SessionStateListener {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SessionStateListenerImpl.class);
 
   private List<SMPPServerSession> sessions;
 
@@ -37,12 +35,12 @@ public class SessionStateListenerImpl implements SessionStateListener {
   }
 
   public void addServerSession(final SMPPServerSession session) {
-    LOG.info("Add server session {}", session);
+    log.info("Add server session {}", session);
     this.sessions.add(session);
   }
 
   public void onStateChange(final SessionState newState, final SessionState oldState, final Session session) {
-    LOG.info("Session {} changed from {} to {}", session.getSessionId(), oldState, newState);
+    log.info("Session {} changed from {} to {}", session.getSessionId(), oldState, newState);
     SMPPServerSession serverSession = (SMPPServerSession) session;
     if (!sessions.contains(session)) {
       sessions.add(serverSession);
@@ -53,14 +51,14 @@ public class SessionStateListenerImpl implements SessionStateListener {
     if (newState == SessionState.CLOSED) {
       final boolean isRemoved = sessions.remove(session);
       if (!isRemoved) {
-        LOG.warn("The session {} could not be removed from the sessions list", session.getSessionId());
+        log.warn("The session {} could not be removed from the sessions list", session.getSessionId());
       }
     }
     if (newState == SessionState.BOUND_RX || newState == SessionState.BOUND_TRX) {
-      LOG.info("Send BoundReceiverEvent");
+      log.info("Send BoundReceiverEvent");
       ApplicationContextProvider.getApplicationContext().publishEvent(new BoundReceiverEvent(this, serverSession));
     } else {
-      LOG.info("NOT Send BoundReceiverEvent");
+      log.info("NOT Send BoundReceiverEvent");
     }
   }
 }

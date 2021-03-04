@@ -4,13 +4,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.pmoerenhout.atcommander.api.SerialException;
 import com.github.pmoerenhout.atcommander.basic.exceptions.ResponseException;
 import com.github.pmoerenhout.atcommander.basic.exceptions.TimeoutException;
 import com.github.pmoerenhout.atcommander.module._3gpp.EtsiModem;
+import com.github.pmoerenhout.atcommander.module._3gpp.commands.NewMessageIndicationsResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.commands.PreferredMessageStorageResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.commands.SelectMessageServiceResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.commands.ServiceCentreAddressResponse;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexMessage;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexPduMessage;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.Message;
@@ -28,12 +29,12 @@ import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsStatusReportPdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
 import com.github.pmoerenhout.pduutils.wappush.WapSiPdu;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class MessageService {
 
   // https://en.wikipedia.org/wiki/GSM_03.40
-
-  private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
   private EtsiModem modem;
   private MessageMode messageMode;
@@ -41,6 +42,15 @@ public class MessageService {
 
   public MessageService(final EtsiModem modem) {
     this.modem = modem;
+  }
+
+  public void showSelectMessageService() throws ResponseException, SerialException, TimeoutException {
+    final SelectMessageServiceResponse response = modem.getSelectMessageService();
+    log.info("SMS Message Service: {} MO:{} MT:{} BM:{}", response.getService(),response.getMo(),response.getMt(),response.getBm());
+  }
+
+  public void setSelectMessageService(final int service) throws ResponseException, SerialException, TimeoutException {
+    modem.setSelectMessageService(service);
   }
 
   public void setPduMessageMode() throws ResponseException, SerialException, TimeoutException {
@@ -92,6 +102,40 @@ public class MessageService {
     log.info("TE: {}", modem.getTeCharacterSet());
   }
 
+  public void showServiceCentreAddress() throws ResponseException, SerialException, TimeoutException {
+    final ServiceCentreAddressResponse response = modem.getServiceCentreAddress();
+    log.info("Service Centre Address: {} {}", response.getType(), response.getNumber());
+  }
+
+  public void showPreferredMessageStorage() throws ResponseException, SerialException, TimeoutException {
+    final PreferredMessageStorageResponse response = modem.getPreferredMessageStorage();
+    log.info("Messages to be read and deleted  : {} {} {}", response.getMem1(), response.getUsed1(), response.getTotal1());
+    log.info("Messages will be written and sent: {} {} {}", response.getMem2(), response.getUsed2(), response.getTotal2());
+    log.info("Routing to PC is not set         : {} {} {}", response.getMem3(), response.getUsed3(), response.getTotal3());
+  }
+
+  public void showNewMessageIndications() throws ResponseException, SerialException, TimeoutException {
+    final NewMessageIndicationsResponse response = modem.getNewMessageIndications();
+    log.info("NMI: mode:{} mt:{} bm:{} ds:{} bfr:{}",
+        response.getMode(), response.getMt(), response.getBm(), response.getDs(), response.getBfr());
+  }
+
+  public void setNewMessageIndications(final int mode, final int mt, final int bm, final int ds, final int bfr) throws ResponseException, SerialException, TimeoutException {
+    modem.setNewMessageIndications(mode, mt, bm, ds, bfr);
+  }
+
+  public void setServiceForMoSmsMessages(final int service) throws ResponseException, SerialException, TimeoutException {
+    modem.setServiceForMoSmsMessages(service);
+  }
+
+  public List<Integer> getServicesForMoSmsMessages() throws ResponseException, SerialException, TimeoutException {
+    return modem.getServicesForMoSmsMessages();
+  }
+
+  public int getServiceForMoSmsMessages() throws ResponseException, SerialException, TimeoutException {
+    return modem.getServiceForMoSmsMessages();
+  }
+
   public void sendPduMessage(final String destination, final int sequence) throws ResponseException, SerialException, TimeoutException {
     final String text = "KORE " + String.format("%03d", sequence) + "   " + LocalDateTime.now();
     final byte[] pdu = PduService.createSmsSubmitPdu(destination, text);
@@ -123,7 +167,7 @@ public class MessageService {
     messages.forEach(m -> {
       try {
         final PduParser pduParser = new PduParser();
-        log.info("PDU: {}", m.getPdu());
+        log.debug("PDU: {}", m.getPdu());
         final Pdu pdu = pduParser.parsePdu(m.getPdu());
         log.trace("{}: {}", getTpduType(pdu), m.getPdu());
         if (pdu instanceof SmsDeliveryPdu) {
@@ -141,12 +185,11 @@ public class MessageService {
           log.info("?? SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
               pdu.getProtocolIdentifier());
         }
-      } catch (Exception e){
+      } catch (Exception e) {
         log.error("Exception during parsing", e);
       }
     });
   }
-
 
   public void getMessage(final String connectionId, final String storage, final int index) throws ResponseException, SerialException, TimeoutException {
     final PduMessage pduMessage = readSms(connectionId, index);

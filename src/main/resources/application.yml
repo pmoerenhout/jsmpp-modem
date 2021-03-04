@@ -32,7 +32,8 @@ logging:
     com.github.pmoerenhout.atcommander: info
     com.github.pmoerenhout.jsmpp-pool: info
     com.github.pmoerenhout: info
-    org.jsmpp: debug
+    com.github.pmoerenhout.jsmppmodem.service.PduService: warn
+    org.jsmpp: info
 
 ---
 

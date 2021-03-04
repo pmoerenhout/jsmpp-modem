@@ -11,7 +11,7 @@ import com.github.pmoerenhout.jsmppmodem.util.Util;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 import net.freeutils.charset.gsm.CCPackedGSMCharset;
 
-public class PduServiceTest {
+class PduServiceTest {
 
   @Test
   public void test_decode__deliver_pdu() {

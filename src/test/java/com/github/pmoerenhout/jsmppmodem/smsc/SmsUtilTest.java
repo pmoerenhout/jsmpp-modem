@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 import net.freeutils.charset.gsm.CCPackedGSMCharset;
 
-public class SmsUtilTest {
+class SmsUtilTest {
 
   @Test
   public void test_unpack() {

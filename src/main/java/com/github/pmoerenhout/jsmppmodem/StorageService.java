@@ -3,8 +3,6 @@ package com.github.pmoerenhout.jsmppmodem;
 import java.time.Instant;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -13,11 +11,11 @@ import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsDeliveryPduEvent;
 import com.github.pmoerenhout.jsmppmodem.jpa.model.Deliver;
 import com.github.pmoerenhout.jsmppmodem.jpa.repository.DeliverRepository;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class StorageService {
-
-  private static final Logger log = LoggerFactory.getLogger(StorageService.class);
 
   @Autowired
   private DeliverRepository deliverRepository;

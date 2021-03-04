@@ -29,8 +29,6 @@ import org.jsmpp.session.SMPPServerSessionListener;
 import org.jsmpp.session.ServerMessageReceiverListener;
 import org.jsmpp.session.ServerResponseDeliveryListener;
 import org.jsmpp.session.SessionStateListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
@@ -48,12 +46,13 @@ import com.github.pmoerenhout.jsmppmodem.service.PduService;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @EnableAsync
 @Service
 public class SmppService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SmppService.class);
   private final List<SMPPServerSession> sessions;
   private final TaskExecutor taskExecutor;
   private SMPPServerSessionListener sessionListener = null;
@@ -89,44 +88,44 @@ public class SmppService {
     this.storageService = storageService;
 
     this.address = configuration.getAddress();
-    LOG.info("SMPP service created");
+    log.info("SMPP service created");
   }
 
   @Async
   public void start() throws InterruptedException {
     final int port = configuration.getPort();
     final int transactionTimer = configuration.getTransactionTimer();
-    LOG.info("SMPP service started on port {}", port);
+    log.info("SMPP service started on port {}", port);
     try {
       running = true;
       sessionListener = new SMPPServerSessionListener(port);
       // start the listener
-      LOG.info("Listening on port {}", port);
+      log.info("Listening on port {}", port);
       while (running) {
-        LOG.info("Waiting for new connection...");
+        log.info("Waiting for new connection...");
         final SMPPServerSession serverSession = sessionListener.accept();
         sessions.add(serverSession);
         serverSession.addSessionStateListener(sessionStateListener);
-        LOG.info("Accepting connection from {}:{} for session {} with transaction timeout {}", serverSession.getInetAddress(), serverSession.getPort(),
+        log.info("Accepting connection from {}:{} for session {} with transaction timeout {}", serverSession.getInetAddress(), serverSession.getPort(),
             serverSession.getSessionId(), transactionTimer);
         serverSession.setMessageReceiverListener(serverMessageReceiverListener);
         serverSession.setResponseDeliveryListener(serverResponseDeliveryListener);
         serverSession.setTransactionTimer(transactionTimer);
         taskExecutor.execute(new WaitBindTask(serverSession, configuration.getBindTimeout(), configuration.getEnquireLinkTimer()));
       }
-      LOG.info("The SMPP server will be stopped");
+      log.info("The SMPP server will be stopped");
     } catch (final SocketException e) {
-      LOG.info("Socket port {}: {}", port, e.getMessage());
+      log.info("Socket port {}: {}", port, e.getMessage());
     } catch (final IOException e) {
-      LOG.error("Error during listener on port " + port, e);
+      log.error("Error during listener on port " + port, e);
     } finally {
       try {
         if (sessionListener != null) {
-          LOG.info("Finally close listener port {}", sessionListener.getPort());
+          log.info("Finally close listener port {}", sessionListener.getPort());
           sessionListener.close();
         }
       } catch (final IOException e) {
-        LOG.error("Could not close listener", e);
+        log.error("Could not close listener", e);
       }
     }
 
@@ -134,11 +133,11 @@ public class SmppService {
 
     // Wait for connected sessions to be closed, then terminate
     while (sessions.size() > 0) {
-      LOG.info("Wait for {} sessions to be closed", sessions.size());
+      log.info("Wait for {} sessions to be closed", sessions.size());
       // Wait for existing sessions to be closed
       Thread.sleep(50);
     }
-    LOG.info("The SMPP service is stopped");
+    log.info("The SMPP service is stopped");
   }
 
   private void closeAllSessions() {
@@ -150,11 +149,11 @@ public class SmppService {
 
   @EventListener
   public void handleReceivedSmsDeliveryPduEvent(final ReceivedSmsDeliveryPduEvent event) throws Exception {
-    LOG.info("handleReceivedSmsDeliveryPduEvent: {}", Util.bytesToHexString(event.getPdu()));
+    log.info("handleReceivedSmsDeliveryPduEvent: {}", Util.bytesToHexString(event.getPdu()));
     final DeliverSm deliverSm = getDeliverSm(event.getConnectionId(), event.getPdu());
-    LOG.info("Send deliverSm to all sessions: {}", deliverSm);
+    log.info("Send deliverSm to all sessions: {}", deliverSm);
     final int delivered = deliverAllSession(deliverSm);
-    LOG.info("Delivered to {} session(s)", delivered);
+    log.info("Delivered to {} session(s)", delivered);
     storageService.save(event.getTimestamp(), event.getConnectionId(), event.getPdu());
   }
 
@@ -162,20 +161,20 @@ public class SmppService {
   @EventListener
   @Async
   public void handleBoundReceiverEvent(final BoundReceiverEvent event) throws Exception {
-    LOG.info("Session {} is bound, send all messages", event.getServerSession().getSessionId());
+    log.info("Session {} is bound, send all messages", event.getServerSession().getSessionId());
     // Allow the ESME to handle the bind_resp and change the state from OPEN to BOUND
     storageService.streamAll().forEach(r -> {
       try {
         final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), r.getPdu());
         int retry = 3;
         while (retry-- > 0) {
-          LOG.info("deliverSm: {} retry:{}", deliverSm, retry);
+          log.info("deliverSm: {} retry:{}", deliverSm, retry);
           if (deliver(event.getServerSession(), deliverSm)) {
             break;
           }
         }
       } catch (IllegalArgumentException | UnsupportedEncodingException e) {
-        LOG.error("Could not send message", e);
+        log.error("Could not send message", e);
         throw new IllegalStateException("SHOULD NOT HAPPEN!");
       }
     });
@@ -187,10 +186,10 @@ public class SmppService {
     storageService.streamAll().forEach(r -> {
       try {
         final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), r.getPdu());
-        LOG.info("deliverSm: {}", deliverSm);
+        log.info("deliverSm: {}", deliverSm);
         deliverAllSession(deliverSm);
       } catch (UnsupportedEncodingException e) {
-        LOG.error("Could not send PDU", e);
+        log.error("Could not send PDU", e);
       }
     });
   }
@@ -218,45 +217,45 @@ public class SmppService {
       final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
           "07911346101919F9040B911316240486F90008817052614190808000480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
-      LOG.info("deliverSm: {}", deliverSm);
+      log.info("deliverSm: {}", deliverSm);
       deliverAllSession(deliverSm);
     } catch (UnsupportedEncodingException e) {
-      LOG.error("Could not send PDU", e);
+      log.error("Could not send PDU", e);
     }
     Thread.sleep(10000);
     try {
       final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
           "07911346101919F9400B911316240486F90008817062611544808C05000319040103E903E903E9029B029B029B029B03E903E903E903E9029B0020005700610072006400200068006500740020007700650072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B029B029B03E903E903E903E9029B002000570061007200640020006800650074002000770065"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
-      LOG.info("deliverSm: {}", deliverSm);
+      log.info("deliverSm: {}", deliverSm);
       deliverAllSession(deliverSm);
     } catch (UnsupportedEncodingException e) {
-      LOG.error("Could not send PDU", e);
+      log.error("Could not send PDU", e);
     }
     Thread.sleep(10000);
     try {
       final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
           "07911346101919F9400B911316240486F90008817062611554808C0500031904020072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B029B029B03E903E903E903E9029B0020005700610072006400200068006500740020007700650072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
-      LOG.info("deliverSm: {}", deliverSm);
+      log.info("deliverSm: {}", deliverSm);
       deliverAllSession(deliverSm);
     } catch (UnsupportedEncodingException e) {
-      LOG.error("Could not send PDU", e);
+      log.error("Could not send PDU", e);
     }
   }
 
   public void stop() {
-    LOG.info("Set running to false and close listener");
+    log.info("Set running to false and close listener");
     running = false;
     // Close the listener will interrupt the accept()
     try {
       if (sessionListener != null) {
-        LOG.info("Close listener");
+        log.info("Close listener");
         sessionListener.close();
         sessionListener = null;
       }
     } catch (final IOException e) {
-      LOG.error("Could not close listener", e);
+      log.error("Could not close listener", e);
     }
   }
 
@@ -271,8 +270,8 @@ public class SmppService {
   private DeliverSm getDeliverSm(final String connectionId, final SmsDeliveryPdu pdu, final byte[] bytes) throws UnsupportedEncodingException {
     final DataCodedMessage dataCodedMessage = smppSmsTranscoding.toSmpp(pdu.getUDData(), (byte) (pdu.getDataCodingScheme() & (byte) 0xff));
 
-    LOG.info("UD  {} -> {}", Util.bytesToHexString(pdu.getUDData()), Util.bytesToHexString(dataCodedMessage.getMessage()));
-    LOG.info("DCS {} -> {}", String.format("%02X", pdu.getDataCodingScheme()), String.format("%02X", dataCodedMessage.getCodingScheme()));
+    log.debug("UD  {} -> {}", Util.bytesToHexString(pdu.getUDData()), Util.bytesToHexString(dataCodedMessage.getMessage()));
+    log.debug("DCS {} -> {}", String.format("%02X", pdu.getDataCodingScheme()), String.format("%02X", dataCodedMessage.getCodingScheme()));
 
     final DeliverSm deliverSm = new DeliverSm();
     deliverSm.setServiceType(configuration.getServiceType());
@@ -332,7 +331,7 @@ public class SmppService {
   }
 
   public int deliverAllSession(final DeliverSm deliverSm) {
-    LOG.info("Sessions: {}", sessions.size());
+    log.info("Sessions: {}", sessions.size());
     final AtomicInteger i = new AtomicInteger(0);
     sessions.forEach(s -> {
       if (s.getSessionState().isBound()) {
@@ -340,17 +339,17 @@ public class SmppService {
           i.incrementAndGet();
         }
       } else {
-        LOG.warn("Wrong state, not sending deliver_sm to session {} in state {}", s.getSessionId(), s.getSessionState());
+        log.warn("Wrong state, not sending deliver_sm to session {} in state {}", s.getSessionId(), s.getSessionState());
       }
     });
     final int delivered = i.get();
-    LOG.info("The message was delivered to {} session(s)", delivered);
+    log.info("The message was delivered to {} session(s)", delivered);
     return delivered;
   }
 
   public boolean deliver(final SMPPServerSession serverSession, final DeliverSm deliverSm) {
     try {
-      LOG.info("Send deliver_sm on session {} in state {}", serverSession.getSessionId(), serverSession.getSessionState());
+      log.info("Send deliver_sm on session {} in state {}", serverSession.getSessionId(), serverSession.getSessionState());
       serverSession.deliverShortMessage(
           deliverSm.getServiceType(),
           TypeOfNumber.valueOf(deliverSm.getSourceAddrTon()),
@@ -368,11 +367,11 @@ public class SmppService {
       );
       return true;
     } catch (NegativeResponseException e) {
-      LOG.warn("Deliver_sm on session {} not accepted: {}", serverSession.getSessionId(), e.getMessage());
+      log.warn("Deliver_sm on session {} not accepted: {}", serverSession.getSessionId(), e.getMessage());
       return false;
     } catch (PDUException | ResponseTimeoutException |
         InvalidResponseException | IOException e) {
-      LOG.warn("Could not send deliver_sm on session " + serverSession.getSessionId(), e);
+      log.warn("Could not send deliver_sm on session " + serverSession.getSessionId(), e);
       return false;
     }
   }
@@ -390,25 +389,25 @@ public class SmppService {
 
     public void run() {
       try {
-        LOG.info("Wait for bind request (timeout {}) from session {}", timeout, serverSession.getSessionId());
+        log.info("Wait for bind request (timeout {}) from session {}", timeout, serverSession.getSessionId());
         final BindRequest bindRequest = serverSession.waitForBind(timeout);
-        LOG.info("Received bind for session {} with bindType:{} systemId:'{}' password:'{}' systemType:'{}'", serverSession.getSessionId(),
+        log.info("Received bind for session {} with bindType:{} systemId:'{}' password:'{}' systemType:'{}'", serverSession.getSessionId(),
             bindRequest.getBindType(), bindRequest.getSystemId(), bindRequest.getPassword(), bindRequest.getSystemType());
         try {
-          LOG.info("Received and accepting bind for session {}, interface version {}", serverSession.getSessionId(), bindRequest.getInterfaceVersion());
+          log.info("Received and accepting bind for session {}, interface version {}", serverSession.getSessionId(), bindRequest.getInterfaceVersion());
           bindRequest.accept("sys", InterfaceVersion.IF_34);
         } catch (PDUStringException e) {
-          LOG.error("PDU string exception", e);
+          log.error("PDU string exception", e);
           bindRequest.reject(SMPPConstant.STAT_ESME_RSYSERR);
         }
-        LOG.info("Set enquireLink time to {}ms", enquireLinkTimer);
+        log.info("Set enquireLink time to {}ms", enquireLinkTimer);
         serverSession.setEnquireLinkTimer(enquireLinkTimer);
       } catch (final IllegalStateException e) {
-        LOG.error("System error", e);
+        log.error("System error", e);
       } catch (final TimeoutException e) {
-        LOG.warn("Wait for bind has reached timeout", e);
+        log.warn("Wait for bind has reached timeout", e);
       } catch (final IOException e) {
-        LOG.error("Failed accepting bind request for session", e);
+        log.error("Failed accepting bind request for session", e);
       }
     }
   }

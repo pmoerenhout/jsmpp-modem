@@ -1,7 +1,5 @@
 package com.github.pmoerenhout.jsmppmodem;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.github.pmoerenhout.atcommander.api.UnsolicitedResponse;
@@ -15,10 +13,10 @@ import com.github.pmoerenhout.jsmppmodem.events.MessageTerminatingIndicationEven
 import com.github.pmoerenhout.jsmppmodem.events.NetworkRegistrationEvent;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class UnsolicitedCallback implements UnsolicitedResponseCallback {
-
-  private static final Logger log = LoggerFactory.getLogger(UnsolicitedCallback.class);
 
   private String id;
   private ApplicationEventPublisher applicationEventPublisher;

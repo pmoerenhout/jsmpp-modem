@@ -2,11 +2,11 @@ package com.github.pmoerenhout.jsmppmodem;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.github.pmoerenhout.atcommander.api.SerialException;
@@ -16,14 +16,15 @@ import com.github.pmoerenhout.atcommander.module._3gpp.EtsiModem;
 import com.github.pmoerenhout.atcommander.module._3gpp.RegistrationState;
 import com.github.pmoerenhout.atcommander.module._3gpp.commands.NetworkRegistrationResponse;
 import com.github.pmoerenhout.atcommander.module._3gpp.commands.OperatorSelectionResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexPduMessage;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.SignalQuality;
 import com.github.pmoerenhout.atcommander.module.v250.enums.AccessTechnology;
 import com.github.pmoerenhout.jsmppmodem.smsc.SmppService;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class Bla implements CommandLineRunner {
-
-  final static Logger LOG = LoggerFactory.getLogger(Bla.class);
 
   @Autowired
   private ModemService modemService;
@@ -32,27 +33,27 @@ public class Bla implements CommandLineRunner {
   private SmppService smppService;
 
   public void run(final String... args) throws Exception {
-    LOG.info("Run with arguments {}", args);
+    log.info("Run with arguments {}", args);
     try {
       modemService.init();
 
       smppService.start();
 
       final Modem modem = modemService.getFirstModem();
-      LOG.info("Is first modem {} initialized? {}", modem.getId(), modem.isInitialized());
+      log.info("Is first modem {} initialized? {}", modem.getId(), modem.isInitialized());
 
       final boolean initialized = modemService.waitForInitialisation(60000);
       if (!initialized) {
-        LOG.warn("Initialisation failed");
+        log.warn("Initialisation failed");
         return;
       }
 
       // modemService.showAllMessages(modem);
       // modemService.sendAllMessagesViaSmpp(modem);
 
-      LOG.info("STORE");
+      log.info("STORE");
       modemService.storeAllMessages(modem);
-      LOG.info("DONE");
+      log.info("DONE");
 
       String imsi = modem.get3gppModem().getInternationalMobileSubscriberIdentity();
 
@@ -67,20 +68,21 @@ public class Bla implements CommandLineRunner {
       // modemService.send(modem, "31682346962", 1);
 
 
-      if ("204080151466084".equals(imsi)) {
+      if (false && "204080151466084".equals(imsi)) {
         // modemService.sendText(modem, "31638031041", "Marie-Louise, dit is een SMS van de PIM applicatie!");
-//        modemService.sendText(modem, "1266", "SALDO");
-//        Thread.sleep(1000);
-//        modem.get3gppModem().setUssd(1, "*101#");
+        // modemService.sendText(modem, "31614240689", "Pim, dit is een SMS van de PIM applicatie!");
+        modemService.sendText(modem, "1266", "SALDO");
+        Thread.sleep(5000);
+        modem.get3gppModem().setUssd(1, "*101#");
 //        IntStream.rangeClosed(100,123).forEach(
 //            IntConsumerWithThrowable.castIntConsumerWithThrowable(i -> {
 //          Thread.sleep(1000);
 //          sendUssd(modem.get3gppModem(), "*" + i + "#");
 //        }));
-//        Thread.sleep(1000);
-//        sendUssd(modem.get3gppModem(), "*107#");
-//      Thread.sleep(5000);
-//      modem.get3gppModem().setUssd(1, "*111#");
+        Thread.sleep(5000);
+        sendUssd(modem.get3gppModem(), "*107#");
+        Thread.sleep(5000);
+        modem.get3gppModem().setUssd(1, "*111#");
       }
 
       if ("222013410016127".equals(imsi)) {
@@ -138,25 +140,25 @@ public class Bla implements CommandLineRunner {
         try {
           final EtsiModem etsiModem = modem.get3gppModem();
           imsi = etsiModem.getInternationalMobileSubscriberIdentity();
-          LOG.info("IMSI: {}", imsi);
+          log.info("IMSI: {}", imsi);
           final NetworkRegistrationResponse networkRegistration = etsiModem.getNetworkRegistration();
           final RegistrationState registrationState = networkRegistration.getRegistrationState();
           if (registrationState == RegistrationState.REGISTERED_HOME_NETWORK || registrationState == RegistrationState.REGISTERED_ROAMING) {
-            LOG.info("Network registration: {} (LAC:{} CID:{})", networkRegistration.getRegistrationState(), networkRegistration.getLac(),
+            log.info("Network registration: {} (LAC:{} CID:{})", networkRegistration.getRegistrationState(), networkRegistration.getLac(),
                 networkRegistration.getCellId());
           } else {
-            LOG.warn("Network registration: {}", networkRegistration.getRegistrationState());
+            log.warn("Network registration: {}", networkRegistration.getRegistrationState());
           }
           final SignalQuality signalQuality = etsiModem.getSignalQuality();
-          LOG.info("Signal quality: RSSI:{} BER:{}", signalQuality.getRssi(), signalQuality.getBer());
+          log.info("Signal quality: RSSI:{} BER:{}", signalQuality.getRssi(), signalQuality.getBer());
 
           final OperatorSelectionResponse operatorSelection = etsiModem.getOperatorSelection();
           if (operatorSelection != null) {
-            LOG.info("Operator: {} AcT:{} ({})", operatorSelection.getOper(), AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
+            log.info("Operator: {} AcT:{} ({})", operatorSelection.getOper(), AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
           }
 
         } catch (TimeoutException e) {
-          LOG.info("Fetching the network registration failed: {}", e.getMessage());
+          log.info("Fetching the network registration failed: {}", e.getMessage());
         }
 //      smppService.stop();
 //      Thread.sleep(5000);
@@ -166,7 +168,7 @@ public class Bla implements CommandLineRunner {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
-      LOG.error("Error running the modem service", e);
+      log.error("Error running the modem service", e);
     }
     smppService.stop();
     modemService.close();
@@ -174,8 +176,30 @@ public class Bla implements CommandLineRunner {
 
   private void sendUssd(final EtsiModem modem, final String ussdString) throws
       ResponseException, TimeoutException, SerialException {
-    LOG.info("Send USSD {}", ussdString);
+    log.info("Send USSD {}", ussdString);
     modem.setUssd(1, ussdString);
+  }
+
+  @Scheduled(initialDelay = 60000, fixedRate = 60000)
+  public void scheduleCleanup() {
+    log.info("scheduleCleanup");
+    final List<Modem> modems = modemService.getModems();
+    for (Modem modem : modems) {
+      try {
+        final MessageService messageService = modem.getMessageService();
+        final List<IndexPduMessage> messages = messageService.getAllMessages();
+        log.info("Modem {} has {} messages", modem.getId(), messages.size());
+        if (messages.size() > 200) {
+          log.info("Delete all messages from modem {}", modem.getId());
+          messageService.deleteAllMessages();
+        }
+      } catch (Exception e) {
+        log.error("Error fetching messages", e);
+      }
+    }
+//    modems.stream().map(Modem::getMessageService).forEach(ms ->{
+//      log.info("Modem has {} messages", ms.getAllMessages().size());
+//    });
   }
 
 }

@@ -1,8 +1,5 @@
 package com.github.pmoerenhout.jsmppmodem.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.pmoerenhout.jsmppmodem.util.Util;
 import com.github.pmoerenhout.pduutils.MsIsdn;
 import com.github.pmoerenhout.pduutils.gsm0340.Pdu;
@@ -11,10 +8,10 @@ import com.github.pmoerenhout.pduutils.gsm0340.PduGenerator;
 import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class PduService {
-
-  private static final Logger LOG = LoggerFactory.getLogger(PduService.class);
 
   public static byte[] createSmsSubmitPdu(final String address, final String text) {
     final PduGenerator pduGenerator = new PduGenerator();
@@ -54,33 +51,33 @@ public class PduService {
   public static Pdu decode(final byte[] bytes) {
     final PduParser pduParser = new PduParser();
     final String hex = Util.bytesToHexString(bytes);
-    LOG.info("HEX: {}", hex);
+    log.info("HEX: {}", hex);
     final Pdu pdu = pduParser.parsePdu(hex);
-    LOG.info("Message: PDU:{} ({})", hex, pdu.getClass().getSimpleName());
+    log.info("Message: PDU:{} ({})", hex, pdu.getClass().getSimpleName());
     if (pdu instanceof SmsDeliveryPdu) {
-      LOG.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
+      log.info("DELIVERY: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(),
           pdu.getDecodedText());
     } else {
-      LOG.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier());
+      log.info(" SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier());
     }
-    LOG.info("SMSC            : 0x{} '{}'", String.format("%02X", pdu.getSmscAddressType()), pdu.getSmscAddress());
-    LOG.info("TP-MTI          : 0x{}", String.format("%02X", pdu.getTpMti()));
-    LOG.info("TP-UDHI         : {}", pdu.hasTpUdhi());
-    LOG.info("TP-DCS          : 0x{}", String.format("%02X", pdu.getDataCodingScheme()));
-    LOG.info("TP-PID          : 0x{}", String.format("%02X", pdu.getProtocolIdentifier()));
-    LOG.info("Orig Address    : 0x{} '{}'", String.format("%02X", pdu.getAddressType()), pdu.getAddress());
-    LOG.info("UD              : {}", Util.bytesToHexString(pdu.getUDData()));
-    LOG.info("UDH             : {}", Util.bytesToHexString(pdu.getUDHData()));
+    log.info("SMSC            : 0x{} '{}'", String.format("%02X", pdu.getSmscAddressType()), pdu.getSmscAddress());
+    log.info("TP-MTI          : 0x{}", String.format("%02X", pdu.getTpMti()));
+    log.info("TP-UDHI         : {}", pdu.hasTpUdhi());
+    log.info("TP-DCS          : 0x{}", String.format("%02X", pdu.getDataCodingScheme()));
+    log.info("TP-PID          : 0x{}", String.format("%02X", pdu.getProtocolIdentifier()));
+    log.info("Orig Address    : 0x{} '{}'", String.format("%02X", pdu.getAddressType()), pdu.getAddress());
+    log.info("UD              : {}", Util.bytesToHexString(pdu.getUDData()));
+    log.info("UDH             : {}", Util.bytesToHexString(pdu.getUDHData()));
     if (pdu.getUDData() != null) {
-      LOG.info("UD (without UDH): {}", Util.bytesToHexString(pdu.getUserDataAsBytes()));
-      LOG.info("TotalUDHLength  : {}", pdu.getTotalUDHLength());
+      log.info("UD (without UDH): {}", Util.bytesToHexString(pdu.getUserDataAsBytes()));
+      log.info("TotalUDHLength  : {}", pdu.getTotalUDHLength());
     }
     if (pdu instanceof SmsDeliveryPdu) {
       final SmsDeliveryPdu smsDeliveryPdu = (SmsDeliveryPdu) pdu;
-      LOG.info("TP-MSS          : {}", smsDeliveryPdu.hasTpMms());
-      LOG.info("TP-SRI          : {}", smsDeliveryPdu.hasTpSri());
-      LOG.info("TP-RP           : {}", smsDeliveryPdu.hasTpRp());
-      LOG.info("TP-SCTS         : {}", smsDeliveryPdu.getServiceCentreTimestamp());
+      log.info("TP-MSS          : {}", smsDeliveryPdu.hasTpMms());
+      log.info("TP-SRI          : {}", smsDeliveryPdu.hasTpSri());
+      log.info("TP-RP           : {}", smsDeliveryPdu.hasTpRp());
+      log.info("TP-SCTS         : {}", smsDeliveryPdu.getServiceCentreTimestamp());
     }
     return pdu;
   }

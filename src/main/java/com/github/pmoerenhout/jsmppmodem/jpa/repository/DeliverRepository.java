@@ -14,7 +14,7 @@ public interface DeliverRepository extends JpaRepository<Deliver, String> {
   // List<Deliver> findByOriginatingAddress(String originatingAddress);
 
   // @QueryHints(value = @QueryHint(name = HINT_FETCH_SIZE, value = "" + Integer.MIN_VALUE))
-  @Query(value = "select d from Deliver d")
+  @Query(value = "SELECT d FROM Deliver d")
   Stream<Deliver> streamAll();
 
   //Stream<Usage> readAll();

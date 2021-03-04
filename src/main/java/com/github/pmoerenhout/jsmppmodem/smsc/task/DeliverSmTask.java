@@ -12,14 +12,12 @@ import org.jsmpp.bean.SubmitSm;
 import org.jsmpp.bean.TypeOfNumber;
 import org.jsmpp.extra.SessionState;
 import org.jsmpp.session.SMPPServerSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.pmoerenhout.jsmppmodem.util.Util;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class DeliverSmTask implements Runnable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DeliverSmTask.class);
 
   private final SMPPServerSession session;
   private final long delayMillis;
@@ -53,7 +51,7 @@ public class DeliverSmTask implements Runnable {
       // final PacketBuilder packetBuilder = new PacketBuilderImpl();
       // packetBuilder.buildResponsePacket()
       // TODO: send actual response
-      LOG.info("Sending the reponse: {}", Util.bytesToHexString(responsePacketData));
+      log.info("Sending the reponse: {}", Util.bytesToHexString(responsePacketData));
       // Set binary response including the User Data Header (027100)
       shortMessage = responsePacketData;
     } else {
@@ -87,7 +85,7 @@ public class DeliverSmTask implements Runnable {
 
       final SessionState state = session.getSessionState();
       if (!state.isReceivable()) {
-        LOG.debug("Not sending delivery_sm for destination {} since session state is {}", destAddress, state);
+        log.debug("Not sending delivery_sm for destination {} since session state is {}", destAddress, state);
         return;
       }
       try {
@@ -101,12 +99,12 @@ public class DeliverSmTask implements Runnable {
             new RegisteredDelivery(0),
             new RawDataCoding((byte) 0xf6),
             shortMessage);
-        LOG.debug("Send deliver_sm to {}", destAddress);
+        log.debug("Send deliver_sm to {}", destAddress);
       } catch (Exception e) {
-        LOG.error("Failed sending deliver_sm to " + destAddress, e);
+        log.error("Failed sending deliver_sm to " + destAddress, e);
       }
     } catch (InterruptedException e) {
-      LOG.error("The delivery_sm task was interrupted", e);
+      log.error("The delivery_sm task was interrupted", e);
       Thread.currentThread().interrupt();
     }
   }

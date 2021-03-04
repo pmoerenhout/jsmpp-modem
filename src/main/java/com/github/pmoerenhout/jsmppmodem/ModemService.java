@@ -7,8 +7,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -38,11 +36,12 @@ import com.github.pmoerenhout.pduutils.gsm0340.PduParser;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsDeliveryPdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsStatusReportPdu;
 import com.github.pmoerenhout.pduutils.gsm0340.SmsSubmitPdu;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class ModemService {
 
-  private static final Logger log = LoggerFactory.getLogger(ModemService.class);
   private static final int REGISTRATION_TIMEOUT = 300;
   private CountDownLatch latch = new CountDownLatch(1);
   private List<Modem> modems;
@@ -66,6 +65,10 @@ public class ModemService {
     this.storageService = storageService;
     this.applicationEventPublisher = applicationEventPublisher;
     log.info("Found {} serial connection(s) configurations", modems.size());
+  }
+
+  public List<Modem> getModems() {
+    return modems;
   }
 
   public Modem getFirstModem() {
@@ -188,18 +191,38 @@ public class ModemService {
       messageService.setPduMessageMode();
       // messageService.showCurrentTeCharacterSet();
       messageService.setIraTeCharacterSet();
-      messageService.showAllMessages();
+      // messageService.showAllMessages();
+      messageService.showSelectMessageService();
+      messageService.showServiceCentreAddress();
+      messageService.showPreferredMessageStorage();
+      messageService.showNewMessageIndications();
+      /*
+        mode 2: Buffer unsolicited result codes in the TA when TA-TE link is reserved (e.g. in data
+        mode) and flush them to the TE after reservation. Otherwise forward them directly to the TE.
+       */
+      /*
+        mt 1: SMS-DELIVERs (except  class  2) are routed directly to the TE using unsolicitedresult code: +CMT:  [<alpha>],<length><CR><LF><pdu>(PDU  modeenabled)
+        or +CMT:<oa>,[<alpha>],<scts>[,<tooa>,<fo>,<pid>,<dcs>,<sca>,<tosca>,<length>]<CR><LF><data>(text mode enabled;
+        about the parameters in italics, please refer to AT+CSDHcommand) or ^HCMT:<oa>,<scts>,<lang>,<fmt>,<length>,<prt>,<prv>,<type>,<stat><CR><LF><data>(text mode for CDMA SMS).
+        Class 2 messages result in indication as defined in <mt>=1.
+       */
+      messageService.setNewMessageIndications(2, 2, 2, 1, 0);
+
+      log.info("Possible services for MO SMS messages: {}", messageService.getServicesForMoSmsMessages());
+      log.info("Service for MO SMS messages: {}", messageService.getServiceForMoSmsMessages());
+      messageService.setServiceForMoSmsMessages(3);
+//      modems.forEach(m -> {
+//        try {
+//          messageService.sendAllMessagesViaSmpp(m.getId());
+//        } catch (Exception e) {
+//          log.error("Could not send all messages", e);
+//        }
+//      });
+      modem.set3gppModem(etsiModem);
 
       // TODO: Connection ID
-      modems.forEach(m -> {
-        try {
-          messageService.sendAllMessagesViaSmpp(m.getId());
-        } catch (Exception e) {
-          log.error("Could not send all messages", e);
-        }
-      });
+      messageService.sendAllMessagesViaSmpp(modem.getId());
 
-      modem.set3gppModem(etsiModem);
       modem.setMessageService(messageService);
 
     } catch (final InterruptedException e) {

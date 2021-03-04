@@ -20,12 +20,11 @@ import org.jsmpp.extra.SessionState;
 import org.jsmpp.session.SMPPServerSession;
 import org.jsmpp.util.DeliveryReceiptState;
 import org.jsmpp.util.MessageId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class DeliveryReceiptTask implements Runnable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DeliveryReceiptTask.class);
 
   private final SMPPServerSession session;
   private final MessageId messageId;
@@ -104,7 +103,7 @@ public class DeliveryReceiptTask implements Runnable {
 
       final SessionState state = session.getSessionState();
       if (!state.isReceivable()) {
-        LOG.debug("Not sending delivery receipt for message id {} since session state is {}", messageId, state);
+        log.debug("Not sending delivery receipt for message id {} since session state is {}", messageId, state);
         return;
       }
       try {
@@ -117,7 +116,7 @@ public class DeliveryReceiptTask implements Runnable {
             deliveryReceiptState,
             "000", StringUtils.left(new String(shortMessage, charset), 20));
         final String deliveryReceiptAsString = delRec.toString();
-        LOG.debug("Delivery receipt for message id {}: {}", messageId, deliveryReceiptAsString);
+        log.debug("Delivery receipt for message id {}: {}", messageId, deliveryReceiptAsString);
         final OptionalParameter[] optionalParameters = new OptionalParameter[]{
             new OptionalParameter.Message_state((byte) deliveryReceiptState.value()),
             new OptionalParameter.Receipted_message_id(messageId.getValue()),
@@ -133,12 +132,12 @@ public class DeliveryReceiptTask implements Runnable {
             DataCodings.ZERO,
             deliveryReceiptAsString.getBytes(charset),
             optionalParameters);
-        LOG.debug("Send delivery receipt for message id {}", messageId);
+        log.debug("Send delivery receipt for message id {}", messageId);
       } catch (Exception e) {
-        LOG.error("Failed sending delivery_receipt for message id " + messageId, e);
+        log.error("Failed sending delivery_receipt for message id " + messageId, e);
       }
     } catch (InterruptedException e) {
-      LOG.error("The delivery receipt task was interrupted", e);
+      log.error("The delivery receipt task was interrupted", e);
       Thread.currentThread().interrupt();
     }
   }

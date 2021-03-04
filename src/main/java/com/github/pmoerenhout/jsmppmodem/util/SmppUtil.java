@@ -16,17 +16,16 @@ import org.jsmpp.bean.GeneralDataCoding;
 import org.jsmpp.bean.MessageClass;
 import org.jsmpp.bean.OptionalParameter;
 import org.jsmpp.bean.SubmitSm;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.pmoerenhout.jsmppmodem.smsc.InvalidMessagePayloadException;
 import com.github.pmoerenhout.jsmppmodem.util.ie.InformationElement;
 import com.github.pmoerenhout.jsmppmodem.util.ie.UserDataHeader;
 import com.github.pmoerenhout.jsmppmodem.util.ie.UserDataHeaderException;
+import lombok.extern.slf4j.Slf4j;
 import net.freeutils.charset.gsm.CCGSMCharset;
 
+@Slf4j
 public class SmppUtil {
-  private static final Logger LOG = LoggerFactory.getLogger(SmppUtil.class);
 
   private static final CCGSMCharset GSM_CHARSET = new CCGSMCharset();
   private static final Charset ASCII_CHARSET = StandardCharsets.US_ASCII;
@@ -95,11 +94,11 @@ public class SmppUtil {
       final byte iei = message[1];
       final byte ied = message[2];
       if (iei == (byte) 0x70) {
-        LOG.debug("Message is a command packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
+        log.debug("Message is a command packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
         return true;
       }
     }
-    LOG.debug("Message is NOT a command packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
+    log.debug("Message is NOT a command packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
     return false;
   }
 
@@ -113,14 +112,14 @@ public class SmppUtil {
         final UserDataHeader userDataHeader = new UserDataHeader(message);
         final Optional<InformationElement> responsePacketInformationElement = userDataHeader.getInformationElement(IEI_RESPONSE_PACKET_HEADER);
         if (responsePacketInformationElement.isPresent()) {
-          LOG.debug("Message is a response packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
+          log.debug("Message is a response packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
           return true;
         }
       } catch (UserDataHeaderException e) {
-        LOG.debug("The message contains no valid UDH");
+        log.debug("The message contains no valid UDH");
       }
     }
-    LOG.debug("Message is NOT a response packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
+    log.debug("Message is NOT a response packet (UDHI:{} DCS:{} MESSAGE:{})", udhi, Util.bytesToHexString(dcs), Util.bytesToHexString(message));
     return false;
   }
 
@@ -193,19 +192,19 @@ public class SmppUtil {
 
   public static void logOptionalParameters(final OptionalParameter[] optionalParameters, final String prefix) {
     Arrays.stream(optionalParameters).forEach(o -> {
-          LOG.debug("{} optional {} {}: {}", prefix, o.getClass().getName(), o.tag, Util.bytesToHexString(o.serialize()));
+          log.debug("{} optional {} {}: {}", prefix, o.getClass().getName(), o.tag, Util.bytesToHexString(o.serialize()));
           if (o instanceof OptionalParameter.Null) {
-            LOG.info("{} optional {}: null", prefix, o.tag);
+            log.info("{} optional {}: null", prefix, o.tag);
           } else if (o instanceof OptionalParameter.Byte) {
-            LOG.info("{} optional {}: {}", prefix, o.tag, Util.bytesToHexString(((OptionalParameter.Byte) o).getValue()));
+            log.info("{} optional {}: {}", prefix, o.tag, Util.bytesToHexString(((OptionalParameter.Byte) o).getValue()));
           } else if (o instanceof OptionalParameter.Short) {
-            LOG.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.Short) o).getValue());
+            log.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.Short) o).getValue());
           } else if (o instanceof OptionalParameter.Int) {
-            LOG.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.Int) o).getValue());
+            log.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.Int) o).getValue());
           } else if (o instanceof OptionalParameter.COctetString) {
-            LOG.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.COctetString) o).getValueAsString());
+            log.info("{} optional {}: {}", prefix, o.tag, ((OptionalParameter.COctetString) o).getValueAsString());
           } else if (o instanceof OptionalParameter.OctetString) {
-            LOG.info("{} optional {}: {}", prefix, o.tag, Util.bytesToHexString(((OptionalParameter.OctetString) o).getValue()));
+            log.info("{} optional {}: {}", prefix, o.tag, Util.bytesToHexString(((OptionalParameter.OctetString) o).getValue()));
           }
         }
     );
@@ -224,7 +223,7 @@ public class SmppUtil {
   public static byte[] getShortMessageOrPayload(final byte[] shortMessage, final OptionalParameter.OctetString messagePayload)
       throws InvalidMessagePayloadException {
     if (shortMessage.length != 0 && messagePayload != null) {
-      LOG.warn("The message contains shortMessage and also messagePayload, which is not allowed!");
+      log.warn("The message contains shortMessage and also messagePayload, which is not allowed!");
       throw new InvalidMessagePayloadException("The message contains shortMessage and also messagePayload");
     }
     return shortMessage.length != 0 ? shortMessage : (messagePayload != null ? messagePayload.getValue() : new byte[]{});

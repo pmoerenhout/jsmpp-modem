@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -22,12 +20,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @EnableAsync
 @EnableScheduling
 @SpringBootApplication
 public class Application {
-
-  final static Logger log = LoggerFactory.getLogger(Application.class);
 
 //  @Autowired
 //  private ModemService modemService;
