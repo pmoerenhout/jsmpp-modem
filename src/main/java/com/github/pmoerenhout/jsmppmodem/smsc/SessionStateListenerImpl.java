@@ -39,23 +39,26 @@ public class SessionStateListenerImpl implements SessionStateListener {
     this.sessions.add(session);
   }
 
+
   public void onStateChange(final SessionState newState, final SessionState oldState, final Session session) {
     log.info("Session {} changed from {} to {}", session.getSessionId(), oldState, newState);
-    SMPPServerSession serverSession = (SMPPServerSession) session;
+    final SMPPServerSession serverSession = (SMPPServerSession) session;
     if (!sessions.contains(session)) {
+      log.info("Session added");
       sessions.add(serverSession);
     }
     if (newState.isBound()) {
       serverSession.setEnquireLinkTimer(15000);
     }
     if (newState == SessionState.CLOSED) {
-      final boolean isRemoved = sessions.remove(session);
+      log.info("Remove session {}", serverSession.getSessionId());
+      final boolean isRemoved = sessions.remove(serverSession);
       if (!isRemoved) {
-        log.warn("The session {} could not be removed from the sessions list", session.getSessionId());
+        log.warn("The session {} could not be removed from the sessions list", serverSession.getSessionId());
       }
     }
     if (newState == SessionState.BOUND_RX || newState == SessionState.BOUND_TRX) {
-      log.info("Send BoundReceiverEvent");
+      log.info("Send BoundReceiverEvent for session {}", serverSession.getSessionId());
       ApplicationContextProvider.getApplicationContext().publishEvent(new BoundReceiverEvent(this, serverSession));
     } else {
       log.info("NOT Send BoundReceiverEvent");

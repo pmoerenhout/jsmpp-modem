@@ -2,21 +2,23 @@ package com.github.pmoerenhout.jsmppmodem.events;
 
 import org.springframework.context.ApplicationEvent;
 
+import com.github.pmoerenhout.jsmppmodem.Modem;
+
 public class MessageTerminatingIndicationEvent extends ApplicationEvent {
 
-  private String connectionId;
+  private Modem modem;
   private String storage;
   private int index;
 
-  public MessageTerminatingIndicationEvent(final Object source, final String connectionId, final String storage, final int index) {
+  public MessageTerminatingIndicationEvent(final Object source, final Modem modem, final String storage, final int index) {
     super(source);
-    this.connectionId = connectionId;
+    this.modem = modem;
     this.storage = storage;
     this.index = index;
   }
 
-  public String getConnectionId() {
-    return connectionId;
+  public Modem getModem() {
+    return modem;
   }
 
   public String getStorage() {

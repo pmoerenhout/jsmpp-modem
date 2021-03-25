@@ -63,8 +63,6 @@ public class SmppService {
   private SmppSmsTranscoding smppSmsTranscoding;
   private StorageService storageService;
 
-  private String address;
-
   private boolean running;
 
   @Autowired
@@ -86,8 +84,6 @@ public class SmppService {
     this.taskExecutor = taskExecutor;
     this.smppSmsTranscoding = smppSmsTranscoding;
     this.storageService = storageService;
-
-    this.address = configuration.getAddress();
     log.info("SMPP service created");
   }
 
@@ -150,7 +146,9 @@ public class SmppService {
   @EventListener
   public void handleReceivedSmsDeliveryPduEvent(final ReceivedSmsDeliveryPduEvent event) throws Exception {
     log.info("handleReceivedSmsDeliveryPduEvent: {}", Util.bytesToHexString(event.getPdu()));
-    final DeliverSm deliverSm = getDeliverSm(event.getConnectionId(), event.getPdu());
+    final DeliverSm deliverSm = getDeliverSm(event.getConnectionId(), event.getSubscriberNumber(), event.getPdu());
+    log.info("Deliver_sm:: src {}", deliverSm.getSourceAddr());
+    log.info("Deliver_sm:: dst {}", deliverSm.getDestAddress());
     log.info("Send deliverSm to all sessions: {}", deliverSm);
     final int delivered = deliverAllSession(deliverSm);
     log.info("Delivered to {} session(s)", delivered);
@@ -165,7 +163,7 @@ public class SmppService {
     // Allow the ESME to handle the bind_resp and change the state from OPEN to BOUND
     storageService.streamAll().forEach(r -> {
       try {
-        final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), r.getPdu());
+        final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), "1234", r.getPdu());
         int retry = 3;
         while (retry-- > 0) {
           log.info("deliverSm: {} retry:{}", deliverSm, retry);
@@ -185,7 +183,7 @@ public class SmppService {
   public void triggerBoundReceiver() {
     storageService.streamAll().forEach(r -> {
       try {
-        final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), r.getPdu());
+        final DeliverSm deliverSm = getDeliverSm(r.getConnectionId(), "1234", r.getPdu());
         log.info("deliverSm: {}", deliverSm);
         deliverAllSession(deliverSm);
       } catch (UnsupportedEncodingException e) {
@@ -214,7 +212,7 @@ public class SmppService {
   //  @Scheduled(fixedRate = 35000)
   public void sendForTesting() throws Exception {
     try {
-      final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
+      final DeliverSm deliverSm = getDeliverSm("test", "1234", Util.hexToByteArray(
           "07911346101919F9040B911316240486F90008817052614190808000480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
       log.info("deliverSm: {}", deliverSm);
@@ -224,7 +222,7 @@ public class SmppService {
     }
     Thread.sleep(10000);
     try {
-      final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
+      final DeliverSm deliverSm = getDeliverSm("test", "1234", Util.hexToByteArray(
           "07911346101919F9400B911316240486F90008817062611544808C05000319040103E903E903E9029B029B029B029B03E903E903E903E9029B0020005700610072006400200068006500740020007700650072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B029B029B03E903E903E903E9029B002000570061007200640020006800650074002000770065"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
       log.info("deliverSm: {}", deliverSm);
@@ -234,7 +232,7 @@ public class SmppService {
     }
     Thread.sleep(10000);
     try {
-      final DeliverSm deliverSm = getDeliverSm("test", Util.hexToByteArray(
+      final DeliverSm deliverSm = getDeliverSm("test", "1234", Util.hexToByteArray(
           "07911346101919F9400B911316240486F90008817062611554808C0500031904020072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B029B029B03E903E903E903E9029B0020005700610072006400200068006500740020007700650072006B00740021002000400041004200430031003200330034007B007D005B005D00E9006F03E903E903E9029B029B"));
       //final DeliverSm deliverSm = getDeliverSm(Util.hexToByteArray("00480065006C006C006F00200057006F0072006C006400210020005400680069007300200069007300200061002000730068006F007200740020006D006500730073006100670065002E0020004C0065007420190073002000730065006500200077006800610074002000740068006500200050004400550020006900732026"));
       log.info("deliverSm: {}", deliverSm);
@@ -259,15 +257,16 @@ public class SmppService {
     }
   }
 
-  private DeliverSm getDeliverSm(final String connectionId, final byte[] pduBytes) throws UnsupportedEncodingException {
+  private DeliverSm getDeliverSm(final String connectionId, final String destination, final byte[] pduBytes) throws UnsupportedEncodingException {
     final Pdu pdu = PduService.decode(pduBytes);
     if (pdu instanceof SmsDeliveryPdu) {
-      return getDeliverSm(connectionId, (SmsDeliveryPdu) pdu, pduBytes);
+      return getDeliverSm(connectionId, destination, (SmsDeliveryPdu) pdu, pduBytes);
     }
     throw new IllegalArgumentException("The PDU bytes are not SMS-DELIVER PDU");
   }
 
-  private DeliverSm getDeliverSm(final String connectionId, final SmsDeliveryPdu pdu, final byte[] bytes) throws UnsupportedEncodingException {
+  private DeliverSm getDeliverSm(final String connectionId, final String destinationAddress, final SmsDeliveryPdu pdu,
+                                 final byte[] bytes) throws UnsupportedEncodingException {
     final DataCodedMessage dataCodedMessage = smppSmsTranscoding.toSmpp(pdu.getUDData(), (byte) (pdu.getDataCodingScheme() & (byte) 0xff));
 
     log.debug("UD  {} -> {}", Util.bytesToHexString(pdu.getUDData()), Util.bytesToHexString(dataCodedMessage.getMessage()));
@@ -278,7 +277,7 @@ public class SmppService {
     deliverSm.setSourceAddr(pdu.getAddress());
     deliverSm.setSourceAddrTon(getTypeOfNumber(pdu.getAddressType()));
     deliverSm.setSourceAddrNpi(getNumberPlanIndicator(pdu.getAddressType()));
-    deliverSm.setDestAddress(address);
+    deliverSm.setDestAddress(destinationAddress);
     deliverSm.setDestAddrTon(TypeOfNumber.INTERNATIONAL.value());
     deliverSm.setDestAddrNpi(NumberingPlanIndicator.ISDN.value());
     deliverSm.setDataCoding((byte) (pdu.getDataCodingScheme() & 0xff));
@@ -331,7 +330,7 @@ public class SmppService {
   }
 
   public int deliverAllSession(final DeliverSm deliverSm) {
-    log.info("Sessions: {}", sessions.size());
+    log.info("Deliver message to {} session(s)", sessions.size());
     final AtomicInteger i = new AtomicInteger(0);
     sessions.forEach(s -> {
       if (s.getSessionState().isBound()) {
@@ -348,6 +347,10 @@ public class SmppService {
   }
 
   public boolean deliver(final SMPPServerSession serverSession, final DeliverSm deliverSm) {
+    if (!serverSession.getSessionState().isTransmittable()){
+      log.warn("Send deliver_sm on session {} in state {}, is not transmittable", serverSession.getSessionId(), serverSession.getSessionState());
+      return false;
+    }
     try {
       log.info("Send deliver_sm on session {} in state {}", serverSession.getSessionId(), serverSession.getSessionState());
       serverSession.deliverShortMessage(
@@ -369,8 +372,11 @@ public class SmppService {
     } catch (NegativeResponseException e) {
       log.warn("Deliver_sm on session {} not accepted: {}", serverSession.getSessionId(), e.getMessage());
       return false;
-    } catch (PDUException | ResponseTimeoutException |
-        InvalidResponseException | IOException e) {
+    } catch (ResponseTimeoutException | IOException e) {
+      log.warn("Could not send deliver_sm on session " + serverSession.getSessionId() + ", close", e);
+      serverSession.unbindAndClose();
+      return false;
+    } catch (PDUException | InvalidResponseException e) {
       log.warn("Could not send deliver_sm on session " + serverSession.getSessionId(), e);
       return false;
     }

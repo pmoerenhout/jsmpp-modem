@@ -18,11 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UnsolicitedCallback implements UnsolicitedResponseCallback {
 
-  private String id;
+  private Modem modem;
   private ApplicationEventPublisher applicationEventPublisher;
 
-  public UnsolicitedCallback(final String id) {
-    this.id = id;
+  public UnsolicitedCallback(final Modem modem) {
+    this.modem = modem;
     this.applicationEventPublisher = ApplicationContextProvider.getApplicationContext();
   }
 
@@ -31,14 +31,14 @@ public class UnsolicitedCallback implements UnsolicitedResponseCallback {
       final NetworkRegistrationUnsolicited networkRegistration = (NetworkRegistrationUnsolicited) response;
       if (networkRegistration.getAccessTechnology() != null) {
         log.debug("[{}] Network registration: state:{} lac:{} cid:{} access:{}",
-            id,
+            modem.getId(),
             networkRegistration.getRegistrationState(),
             networkRegistration.getLac(),
             networkRegistration.getCellId(),
             networkRegistration.getAccessTechnology());
       } else {
         log.debug("[{}] Network registration: state:{} lac:{} cid:{}",
-            id,
+            modem.getId(),
             networkRegistration.getRegistrationState(),
             networkRegistration.getLac(),
             networkRegistration.getCellId());
@@ -49,7 +49,7 @@ public class UnsolicitedCallback implements UnsolicitedResponseCallback {
     if (response instanceof GprsNetworkRegistrationUnsolicited) {
       final GprsNetworkRegistrationUnsolicited gprsNetworkRegistration = (GprsNetworkRegistrationUnsolicited) response;
       log.debug("[{}] GPRS: state:{} lac:{} cid:{}",
-          id,
+          modem.getId(),
           gprsNetworkRegistration.getRegistrationState(),
           gprsNetworkRegistration.getLac(),
           gprsNetworkRegistration.getCellId());
@@ -58,20 +58,20 @@ public class UnsolicitedCallback implements UnsolicitedResponseCallback {
     if (response instanceof MessageTerminatingUnsolicited) {
       final MessageTerminatingUnsolicited messageTerminating = (MessageTerminatingUnsolicited) response;
       log.debug("[{}] Message Terminating: alpha:{} length:{} pdu:{} ({} bytes)",
-          id,
+          modem.getId(),
           messageTerminating.getAlpha(),
           messageTerminating.getLength(),
           messageTerminating.getPdu(),
           messageTerminating.getPdu().length());
       final byte[] pdu = Util.hexToByteArray(messageTerminating.getPdu());
-      applicationEventPublisher.publishEvent(new ReceivedPduEvent(this, id, pdu));
+      applicationEventPublisher.publishEvent(new ReceivedPduEvent(this, modem, pdu));
       return;
     }
     if (response instanceof MessageTerminatingIndicationUnsolicited) {
       final MessageTerminatingIndicationUnsolicited mti = (MessageTerminatingIndicationUnsolicited) response;
       log.debug("[{}] Message Terminating Indication: storage:{} index:{}",
-          id, mti.getStorage(), mti.getIndex());
-      applicationEventPublisher.publishEvent(new MessageTerminatingIndicationEvent(this, id, mti.getStorage(), mti.getIndex()));
+          modem.getId(), mti.getStorage(), mti.getIndex());
+      applicationEventPublisher.publishEvent(new MessageTerminatingIndicationEvent(this, modem, mti.getStorage(), mti.getIndex()));
       return;
     }
     if (response instanceof UnstructuredSupplementaryServiceDataUnsolicited) {
@@ -79,23 +79,23 @@ public class UnsolicitedCallback implements UnsolicitedResponseCallback {
       switch (ussd.getResponse().intValue()) {
         case 0:
           // TODO: Implement USSD Charset
-          log.debug("[{}] USSD {} (DCS:{})", id, Util.onlyPrintable(ussd.getUssdString().getBytes()), ussd.getDcs());
+          log.debug("[{}] USSD {} (DCS:{})", modem.getId(), Util.onlyPrintable(ussd.getUssdString().getBytes()), ussd.getDcs());
           break;
         case 2:
-          log.debug("[{}] USSD terminated by network", id);
+          log.debug("[{}] USSD terminated by network", modem.getId());
           break;
         case 3:
-          log.debug("[{}] USSD other local client has responded", id);
+          log.debug("[{}] USSD other local client has responded", modem.getId());
           break;
         case 4:
-          log.debug("[{}] USSD operation not supported", id);
+          log.debug("[{}] USSD operation not supported", modem.getId());
           break;
         case 5:
-          log.debug("[{}] USSD network time out", id);
+          log.debug("[{}] USSD network time out", modem.getId());
           break;
         default:
           log.debug("[{}] USSD: response:{} ussd:{} dcs:{})",
-              id, ussd.getResponse(), ussd.getUssdString(), ussd.getDcs());
+              modem.getId(), ussd.getResponse(), ussd.getUssdString(), ussd.getDcs());
       }
       return;
     }

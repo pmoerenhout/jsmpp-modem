@@ -14,7 +14,6 @@ public class SmppConfiguration {
   private Long bindTimeout;
   private Integer enquireLinkTimer;
   private Integer transactionTimer;
-  private String address;
 
   public SmppConfiguration() {
     this.port = 2775;
@@ -23,7 +22,6 @@ public class SmppConfiguration {
     this.bindTimeout = 60000L;
     this.enquireLinkTimer = 0;
     this.transactionTimer = 60000;
-    this.address = "1234";
   }
 
   public int getPort() {
@@ -82,11 +80,4 @@ public class SmppConfiguration {
     this.transactionTimer = transactionTimer;
   }
 
-  public String getAddress() {
-    return address;
-  }
-
-  public void setAddress(final String address) {
-    this.address = address;
-  }
 }

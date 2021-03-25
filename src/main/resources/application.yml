@@ -28,7 +28,10 @@ smpp:
 logging:
   file:
     name: /var/opt/jsmpp-modem/jsmpp-modem.log
+  pattern:
+    console:
   level:
+    root: info
     com.github.pmoerenhout.atcommander: info
     com.github.pmoerenhout.jsmpp-pool: info
     com.github.pmoerenhout: info

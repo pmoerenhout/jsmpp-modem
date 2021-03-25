@@ -18,7 +18,6 @@ import com.github.pmoerenhout.atcommander.module._3gpp.types.Message;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.PduMessage;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageMode;
 import com.github.pmoerenhout.atcommander.module.v250.enums.MessageStatus;
-import com.github.pmoerenhout.jsmppmodem.events.ReceivedPduEvent;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsDeliveryPduEvent;
 import com.github.pmoerenhout.jsmppmodem.events.ReceivedSmsStatusReportPduEvent;
 import com.github.pmoerenhout.jsmppmodem.service.PduService;
@@ -191,20 +190,20 @@ public class MessageService {
     });
   }
 
-  public void getMessage(final String connectionId, final String storage, final int index) throws ResponseException, SerialException, TimeoutException {
-    final PduMessage pduMessage = readSms(connectionId, index);
-    log.info("Found PDU message: {}", pduMessage.getPdu());
-    final PduParser pduParser = new PduParser();
-    final Pdu pdu = pduParser.parsePdu(pduMessage.getPdu());
-    if (pdu instanceof SmsDeliveryPdu) {
-      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
-    } else if (pdu instanceof SmsStatusReportPdu) {
-      ApplicationContextProvider.getApplicationContext()
-          .publishEvent(new ReceivedSmsStatusReportPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
-    }
-  }
+//  public void getMessage(final String connectionId, final String storage, final int index) throws ResponseException, SerialException, TimeoutException {
+//    final PduMessage pduMessage = readSms(connectionId, index);
+//    log.info("Found PDU message: {}", pduMessage.getPdu());
+//    final PduParser pduParser = new PduParser();
+//    final Pdu pdu = pduParser.parsePdu(pduMessage.getPdu());
+//    if (pdu instanceof SmsDeliveryPdu) {
+//      ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+//    } else if (pdu instanceof SmsStatusReportPdu) {
+//      ApplicationContextProvider.getApplicationContext()
+//          .publishEvent(new ReceivedSmsStatusReportPduEvent(this, connectionId, Util.hexToByteArray(pduMessage.getPdu())));
+//    }
+//  }
 
-  public void sendAllMessagesViaSmpp(final String connectionId) throws ResponseException, SerialException, TimeoutException {
+  public void sendAllMessagesViaSmpp(final String connectionId, final String subscriberNumber) throws ResponseException, SerialException, TimeoutException {
     final List<IndexPduMessage> messages = getAllMessages();
     log.info("Send all via SMPP, found {} messages", messages.size());
     messages.forEach(m -> {
@@ -217,7 +216,7 @@ public class MessageService {
         log.info("SMS-DELIVERY SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
             ((SmsDeliveryPdu) pdu).getServiceCentreTimestamp(),
             pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(), pdu.getProtocolIdentifier(), pdu.getDecodedText());
-        ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedSmsDeliveryPduEvent(this, connectionId, Util.hexToByteArray(m.getPdu())));
+        ApplicationContextProvider.getApplicationContext().publishEvent(new ReceivedSmsDeliveryPduEvent(this, connectionId, subscriberNumber, Util.hexToByteArray(m.getPdu())));
       } else if (pdu instanceof SmsStatusReportPdu) {
         log.info("SMS-STATUS-REPORT SCTS:{} SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'",
             ((SmsStatusReportPdu) pdu).getDischargeTime(),
@@ -252,7 +251,7 @@ public class MessageService {
     return modem.getMessagesList(messageStatus);
   }
 
-  public PduMessage readSms(final String connectionId, final int index) throws ResponseException, SerialException, TimeoutException {
+  public PduMessage readSms(final int index) throws ResponseException, SerialException, TimeoutException {
     final Message message = modem.readSms(index).getMessage();
     if (message instanceof PduMessage) {
       return (PduMessage) message;

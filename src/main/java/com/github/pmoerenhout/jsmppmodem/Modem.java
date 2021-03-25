@@ -16,6 +16,7 @@ public class Modem {
   private String id;
   private boolean initialized = false;
   private EtsiModem threegppModem;
+  private Sim sim;
   private MessageService messageService;
   private String port;
   private int speed;
@@ -27,15 +28,15 @@ public class Modem {
     switch (flowControl) {
       case NONE:
         this.threegppModem = new EtsiModem(
-            new JsscSerial(port, speed, FLOWCONTROL_NONE, new UnsolicitedCallback(id)));
+            new JsscSerial(port, speed, FLOWCONTROL_NONE, new UnsolicitedCallback(this)));
         break;
       case RTSCTS:
         this.threegppModem = new EtsiModem(
-            new JsscSerial(port, speed, FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT, new UnsolicitedCallback(id)));
+            new JsscSerial(port, speed, FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT, new UnsolicitedCallback(this)));
         break;
       case XONXOFF:
         this.threegppModem = new EtsiModem(
-            new JsscSerial(port, speed, FLOWCONTROL_XONXOFF_IN | FLOWCONTROL_XONXOFF_OUT, new UnsolicitedCallback(id)));
+            new JsscSerial(port, speed, FLOWCONTROL_XONXOFF_IN | FLOWCONTROL_XONXOFF_OUT, new UnsolicitedCallback(this)));
         break;
     }
   }
@@ -62,6 +63,14 @@ public class Modem {
 
   public void set3gppModem(final EtsiModem threegppModem) {
     this.threegppModem = threegppModem;
+  }
+
+  public Sim getSim() {
+    return sim;
+  }
+
+  public void setSim(final Sim sim) {
+    this.sim = sim;
   }
 
   public String getPort() {
@@ -105,7 +114,6 @@ public class Modem {
 
   @Override
   public int hashCode() {
-
     return Objects.hash(id, threegppModem, port, speed);
   }
 }

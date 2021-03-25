@@ -1,7 +1,9 @@
 package com.github.pmoerenhout.jsmppmodem;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
@@ -20,6 +22,7 @@ import com.github.pmoerenhout.atcommander.basic.exceptions.TimeoutException;
 import com.github.pmoerenhout.atcommander.module._3gpp.EtsiModem;
 import com.github.pmoerenhout.atcommander.module._3gpp.RegistrationState;
 import com.github.pmoerenhout.atcommander.module._3gpp.commands.NetworkRegistrationResponse;
+import com.github.pmoerenhout.atcommander.module._3gpp.commands.SubscriberNumberResponse;
 import com.github.pmoerenhout.atcommander.module._3gpp.exceptions.CmeErrorException;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.IndexPduMessage;
 import com.github.pmoerenhout.atcommander.module._3gpp.types.PduMessage;
@@ -43,8 +46,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ModemService {
 
   private static final int REGISTRATION_TIMEOUT = 300;
-  private CountDownLatch latch = new CountDownLatch(1);
-  private List<Modem> modems;
+  private final CountDownLatch latch = new CountDownLatch(1);
+  private final List<Modem> modems;
 
   private String manufacturerIdentification;
   private String revisionIdentification;
@@ -55,9 +58,9 @@ public class ModemService {
 
   private RegistrationState registrationState;
 
-  private StorageService storageService;
+  private final StorageService storageService;
 
-  private ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Autowired
   public ModemService(final List<Modem> modems, final StorageService storageService, final ApplicationEventPublisher applicationEventPublisher) {
@@ -77,12 +80,16 @@ public class ModemService {
 
   public void init() {
     log.info("Initialize all modems");
-    modems.forEach(s -> {
+    modems.forEach(modem -> {
       try {
-        init(s);
-        s.setInitialized(true);
+        final Sim kpnSim = new Sim();
+        kpnSim.setIccid("8931089118051240341");
+        kpnSim.setPin1("0000");
+        modem.setSim(kpnSim);
+        init(modem);
+        modem.setInitialized(true);
       } catch (InitException e) {
-        log.error("Modem {} at port {} speed {} could not be initialised: {}", s.getId(), s.getPort(), s.getSpeed(), e.getMessage());
+        log.error("Modem {} at port {} speed {} could not be initialised: {}", modem.getId(), modem.getPort(), modem.getSpeed(), e.getMessage());
       }
     });
     latch.countDown();
@@ -93,6 +100,7 @@ public class ModemService {
   }
 
   public void init(final Modem modem) throws InitException {
+    final Sim sim = modem.getSim();
     final EtsiModem etsiModem = modem.get3gppModem();
 
     log.info("Initialize 3GPP modem (27.007)");
@@ -129,9 +137,22 @@ public class ModemService {
 
       final PinStatus pinStatus = etsiModem.getPinStatus();
       switch (pinStatus) {
-        case SIM_PIN:
-          etsiModem.setPin("0000");
+        case READY:
           break;
+        case SIM_PIN:
+          final String pin1 = sim.getPin1();
+          if (StringUtils.isBlank(pin1)) {
+            throw new RuntimeException("The PIN1 is needed");
+          }
+          etsiModem.setPin(sim.getPin1());
+          break;
+        case SIM_PUK:
+          final String puk1 = sim.getPuk1();
+          if (StringUtils.isBlank(puk1)) {
+            throw new RuntimeException("The PUK1 is needed");
+          }
+          throw new RuntimeException("PUK not implemented");
+          // etsiModem.setPuk(puk);
       }
 
       log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
@@ -148,11 +169,17 @@ public class ModemService {
         try {
           imsi = etsiModem.getInternationalMobileSubscriberIdentity();
           log.info("IMSI: {}", imsi);
-        } catch (CmeErrorException e) {
+          sim.setImsi(imsi);
+        } catch (final CmeErrorException e) {
           log.info("Error reading IMSI: {}", e.getMessage());
           Thread.sleep(500);
         }
       }
+
+      final Optional<String> subscriberNumber = getSubscriberNumberE164(etsiModem);
+      log.info("Subscriber number: {}", subscriberNumber);
+      sim.setSubscriberNumber(subscriberNumber.orElse("00000000"));
+      log.info("Subscriber number: {}", sim.getSubscriberNumber());
 
       log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
 
@@ -173,8 +200,8 @@ public class ModemService {
         etsiModem.setNewMessageIndications(2, 1, 0, 0, 0);
       } else {
         // Quectel: +CNMI: (0-2),(0-3),(0,2),(0-2),(0,1)
-        etsiModem.setNewMessageIndications(2, 1, 2, 1, 0);
-        // etsiModem.setNewMessageIndications(2, 2, 2, 1, 0);
+        // Use just indications
+        etsiModem.setNewMessageIndications(2, 2, 2, 1, 0);
       }
       // USSD enable the result code presentation to the TE
       etsiModem.setUssd(1);
@@ -187,6 +214,8 @@ public class ModemService {
       log.info("Service for MO SMS message is {}, possible values are {}", serviceForMoSmsMessages, servicesForMoSmsMessages);
 
       final MessageService messageService = new MessageService(etsiModem);
+      modem.setMessageService(messageService);
+
       // messageService.setTextMessageMode();
       messageService.setPduMessageMode();
       // messageService.showCurrentTeCharacterSet();
@@ -206,11 +235,11 @@ public class ModemService {
         about the parameters in italics, please refer to AT+CSDHcommand) or ^HCMT:<oa>,<scts>,<lang>,<fmt>,<length>,<prt>,<prv>,<type>,<stat><CR><LF><data>(text mode for CDMA SMS).
         Class 2 messages result in indication as defined in <mt>=1.
        */
-      messageService.setNewMessageIndications(2, 2, 2, 1, 0);
 
       log.info("Possible services for MO SMS messages: {}", messageService.getServicesForMoSmsMessages());
       log.info("Service for MO SMS messages: {}", messageService.getServiceForMoSmsMessages());
       messageService.setServiceForMoSmsMessages(3);
+
 //      modems.forEach(m -> {
 //        try {
 //          messageService.sendAllMessagesViaSmpp(m.getId());
@@ -220,10 +249,8 @@ public class ModemService {
 //      });
       modem.set3gppModem(etsiModem);
 
-      // TODO: Connection ID
-      messageService.sendAllMessagesViaSmpp(modem.getId());
-
-      modem.setMessageService(messageService);
+      log.info("Send with {}", sim.getSubscriberNumber());
+      messageService.sendAllMessagesViaSmpp(modem.getId(), sim.getSubscriberNumber());
 
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -244,10 +271,10 @@ public class ModemService {
   @EventListener
   public void handleReceivedMessageIndication(final MessageTerminatingIndicationEvent event) throws Exception {
     log.debug("Received MTI: {} {}", event.getStorage(), event.getIndex());
-    final String connectionId = event.getConnectionId();
-    final Modem modem = modems.stream().filter(m -> m.getId() == connectionId).findFirst().orElseThrow(() -> new RuntimeException("modem not found"));
-    final PduMessage message = modem.getMessageService().readSms(event.getConnectionId(), event.getIndex());
-    applicationEventPublisher.publishEvent(new ReceivedPduEvent(this, connectionId, Util.hexToByteArray(message.getPdu())));
+    // final Modem modem = modems.stream().filter(m -> m.getId() == connectionId).findFirst().orElseThrow(() -> new RuntimeException("modem not found"));
+    final Modem modem = event.getModem();
+    final PduMessage message = modem.getMessageService().readSms(event.getIndex());
+    applicationEventPublisher.publishEvent(new ReceivedPduEvent(this, modem, Util.hexToByteArray(message.getPdu())));
   }
 
   public void send(final Modem modem, final String destination, final int numberOfSms) {
@@ -297,7 +324,7 @@ public class ModemService {
   }
 
   public void sendAllMessagesViaSmpp(final Modem modem) throws ResponseException, SerialException, TimeoutException {
-    modem.getMessageService().sendAllMessagesViaSmpp(modem.getId());
+    modem.getMessageService().sendAllMessagesViaSmpp(modem.getId(), modem.getSim().getSubscriberNumber());
   }
 
   public void storeAllMessages(final Modem modem) throws ResponseException, SerialException, TimeoutException {
@@ -379,6 +406,8 @@ public class ModemService {
 
   @EventListener
   public void handleReceivedPdu(final ReceivedPduEvent event) throws Exception {
+    final Modem modem = event.getModem();
+    log.info("MODEM: {} {}", modem.getId(), modem.getSim().getSubscriberNumber());
     final PduParser pduParser = new PduParser();
     log.info("PDU: {}", Util.bytesToHexString(event.getPdu()));
     final Pdu pdu = pduParser.parsePdu(Util.bytesToHexString(event.getPdu()));
@@ -388,11 +417,11 @@ public class ModemService {
           pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
           pdu.getProtocolIdentifier(),
           pdu.getDecodedText());
-      applicationEventPublisher.publishEvent(new ReceivedSmsDeliveryPduEvent(this, event.getConnectionId(), event.getPdu()));
+      applicationEventPublisher.publishEvent(new ReceivedSmsDeliveryPduEvent(this, modem.getId(), modem.getSim().getSubscriberNumber(), event.getPdu()));
     } else if (pdu instanceof SmsStatusReportPdu) {
       log.info("STATUS-REPORT: SMSC:{} ADDRESS:{} DCS:{} PID:{}", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
           pdu.getProtocolIdentifier());
-      applicationEventPublisher.publishEvent(new ReceivedSmsStatusReportPduEvent(this, event.getConnectionId(), event.getPdu()));
+      applicationEventPublisher.publishEvent(new ReceivedSmsStatusReportPduEvent(this, modem.getId(), event.getPdu()));
     } else if (pdu instanceof SmsSubmitPdu) {
       log.info("SUBMIT: SMSC:{} ADDRESS:{} DCS:{} PID:{} TEXT:'{}'", pdu.getSmscAddress(), pdu.getAddress(), pdu.getDataCodingScheme(),
           pdu.getProtocolIdentifier(),
@@ -401,5 +430,10 @@ public class ModemService {
     } else {
       throw new IllegalArgumentException("The class " + pdu.getClass().getName() + " is unknown");
     }
+  }
+
+  private Optional<String> getSubscriberNumberE164(final EtsiModem etsiModem) throws SerialException, IOException, ResponseException {
+    final SubscriberNumberResponse subscriberNumberResponse = etsiModem.getSubscriberNumber();
+    return Optional.ofNullable(StringUtils.stripStart(subscriberNumberResponse.getNumber(), "+"));
   }
 }
