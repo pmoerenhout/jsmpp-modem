@@ -48,19 +48,14 @@ public class ModemService {
   private static final int REGISTRATION_TIMEOUT = 300;
   private final CountDownLatch latch = new CountDownLatch(1);
   private final List<Modem> modems;
-
+  private final StorageService storageService;
+  private final ApplicationEventPublisher applicationEventPublisher;
   private String manufacturerIdentification;
   private String revisionIdentification;
   private String serialNumber;
   private String productSerialNumberIdentification;
-
   private String imsi;
-
   private RegistrationState registrationState;
-
-  private final StorageService storageService;
-
-  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Autowired
   public ModemService(final List<Modem> modems, final StorageService storageService, final ApplicationEventPublisher applicationEventPublisher) {
@@ -115,6 +110,7 @@ public class ModemService {
       manufacturerIdentification = etsiModem.getManufacturerIdentification();
 
       final boolean isSonyEricsson = (manufacturerIdentification.contains("SONY ERICSSON"));
+      final boolean isQuectel = (manufacturerIdentification.contains("Quectel"));
 
       revisionIdentification = etsiModem.getRevisionIdentification();
       if (!isSonyEricsson) {
@@ -177,9 +173,10 @@ public class ModemService {
       }
 
       final Optional<String> subscriberNumber = getSubscriberNumberE164(etsiModem);
-      log.info("Subscriber number: {}", subscriberNumber);
-      sim.setSubscriberNumber(subscriberNumber.orElse("00000000"));
-      log.info("Subscriber number: {}", sim.getSubscriberNumber());
+      subscriberNumber.ifPresent(s -> {
+        log.info("Subscriber number: {}", s);
+        sim.setSubscriberNumber(s);
+      });
 
       log.info("Phone activity status: {}", etsiModem.getPhoneActivityStatus());
 
@@ -191,8 +188,14 @@ public class ModemService {
       } else {
         etsiModem.setNetworkRegistration(2);
       }
-//      etsiModem.setNewMessageIndications(2, 3, 2, 2, 0);
-      //etsiModem.setNewMessageIndications(1, 2, 0, 0, 0);
+
+      if (isQuectel) {
+        log.info("Set Quectel URC to USB AT");
+        var r = etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbat\"").set();
+      }
+
+      // etsiModem.setNewMessageIndications(2, 3, 2, 2, 0);
+      // etsiModem.setNewMessageIndications(1, 2, 0, 0, 0);
 
       if (isSonyEricsson) {
         // +CNMI: (2),(0,1,3),(0,2),(0),(0)
