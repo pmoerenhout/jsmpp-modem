@@ -154,7 +154,12 @@ public class Bla implements CommandLineRunner {
 
           final OperatorSelectionResponse operatorSelection = etsiModem.getOperatorSelection();
           if (operatorSelection != null) {
-            log.info("Operator: {} AcT:{} ({})", operatorSelection.getOper(), AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
+            if (operatorSelection.getAct() != null) {
+              log.info("Operator: '{}' Access Technology: {} ({})", operatorSelection.getOper(),
+                  AccessTechnology.fromInt(operatorSelection.getAct()), operatorSelection.getAct());
+            } else {
+              log.info("Operator: '{}' Access Technology: {}", operatorSelection.getOper(), operatorSelection.getAct());
+            }
           }
 
         } catch (TimeoutException e) {

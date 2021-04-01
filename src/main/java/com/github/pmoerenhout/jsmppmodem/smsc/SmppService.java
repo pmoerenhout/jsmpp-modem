@@ -54,7 +54,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SmppService {
 
   private final List<SMPPServerSession> sessions;
-  private final TaskExecutor taskExecutor;
+  private final TaskExecutor smppTaskExecutor;
   private SMPPServerSessionListener sessionListener = null;
   private SmppConfiguration configuration;
   private ServerMessageReceiverListener serverMessageReceiverListener;
@@ -72,7 +72,7 @@ public class SmppService {
       @Qualifier("serverResponseDeliveryListener") final ServerResponseDeliveryListenerImpl serverResponseDeliveryListener,
       @Qualifier("sessionStateListener") final SessionStateListenerImpl sessionStateListener,
       @Qualifier("sessions") final List<SMPPServerSession> sessions,
-      @Qualifier("smppTaskExecutor") final TaskExecutor taskExecutor,
+      @Qualifier("smppTaskExecutor") final TaskExecutor smppTaskExecutor,
       @Qualifier("smppSmsTranscoding") final SmppSmsTranscoding smppSmsTranscoding,
       @Qualifier("storageService") final StorageService storageService
   ) {
@@ -81,7 +81,7 @@ public class SmppService {
     this.serverResponseDeliveryListener = serverResponseDeliveryListener;
     this.sessionStateListener = sessionStateListener;
     this.sessions = sessions;
-    this.taskExecutor = taskExecutor;
+    this.smppTaskExecutor = smppTaskExecutor;
     this.smppSmsTranscoding = smppSmsTranscoding;
     this.storageService = storageService;
     log.info("SMPP service created");
@@ -107,7 +107,7 @@ public class SmppService {
         serverSession.setMessageReceiverListener(serverMessageReceiverListener);
         serverSession.setResponseDeliveryListener(serverResponseDeliveryListener);
         serverSession.setTransactionTimer(transactionTimer);
-        taskExecutor.execute(new WaitBindTask(serverSession, configuration.getBindTimeout(), configuration.getEnquireLinkTimer()));
+        smppTaskExecutor.execute(new WaitBindTask(serverSession, configuration.getBindTimeout(), configuration.getEnquireLinkTimer()));
       }
       log.info("The SMPP server will be stopped");
     } catch (final SocketException e) {

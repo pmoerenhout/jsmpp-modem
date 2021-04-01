@@ -16,7 +16,6 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
@@ -24,15 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @EnableAsync
-@EnableScheduling
+//@EnableScheduling
 @SpringBootApplication
 public class Application {
-
-//  @Autowired
-//  private ModemService modemService;
-//
-//  @Autowired
-//  private SmppService smppService;
 
   public static void main(final String[] args) {
     log.info("Main with arguments {}", args);
