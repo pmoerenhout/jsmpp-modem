@@ -5,6 +5,12 @@ After=syslog.target
 [Service]
 WorkingDirectory=/home/pi
 #Type=forking
+
+##Environment=JAVA_HOME=/usr/java/latest/jre
+Environment=CATALINA_PID=/var/apache-tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/apache/apache-tomcat
+Environment=CATALINA_BASE=/var/apache-tomcat
+Environment='CATALINA_OPTS=-Xms512M -Xmx4096M -server -XX:+UseParallelGC'
 Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
 ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/jsmpp-modem/jsmpp-modem.jar
 #ExecStop=/bin/kill -15 $MAINPID

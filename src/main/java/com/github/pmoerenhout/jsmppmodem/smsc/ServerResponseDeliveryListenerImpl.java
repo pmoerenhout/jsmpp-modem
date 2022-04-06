@@ -14,28 +14,31 @@
  */
 package com.github.pmoerenhout.jsmppmodem.smsc;
 
-import org.jsmpp.bean.SubmitMultiResult;
 import org.jsmpp.session.SMPPServerSession;
 import org.jsmpp.session.ServerResponseDeliveryListener;
-import org.jsmpp.util.MessageId;
+import org.jsmpp.session.SubmitMultiResult;
+import org.jsmpp.session.SubmitSmResult;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ServerResponseDeliveryListenerImpl implements ServerResponseDeliveryListener {
 
-  public void onSubmitSmRespSent(MessageId messageId, SMPPServerSession source) {
-    log.info("submit_sm_resp_sent with message id {} on session {}", messageId, source.getSessionId());
+  public void onSubmitSmRespSent(SubmitSmResult submitSmResult, SMPPServerSession source) {
+    log.info("submit_sm_resp_sent with message id {} on session {}", submitSmResult.getMessageId(), source.getSessionId());
   }
 
-  public void onSubmitSmRespError(MessageId messageId, Exception cause, SMPPServerSession source) {
-    log.info("submit_sm_resp_error with message id {} on session {}: {}", messageId, source.getSessionId(), cause.getMessage());
+  @Override
+  public void onSubmitSmRespError(SubmitSmResult submitSmResult, Exception cause, SMPPServerSession source) {
+    log.info("submit_sm_resp_error with message id {} on session {}: {}", submitSmResult.getMessageId(), source.getSessionId(), cause.getMessage());
   }
 
+  @Override
   public void onSubmitMultiRespSent(SubmitMultiResult submitMultiResult, SMPPServerSession source) {
     log.info("submit_multi_resp_sent");
   }
 
+  @Override
   public void onSubmitMultiRespError(SubmitMultiResult submitMultiResult, Exception cause, SMPPServerSession source) {
     log.info("submit_multi_resp_error");
   }

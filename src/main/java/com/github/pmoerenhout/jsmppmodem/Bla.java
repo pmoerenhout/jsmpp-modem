@@ -5,7 +5,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
-public class Bla implements CommandLineRunner {
+public class Bla implements ApplicationRunner {
 
   @Autowired
   private ModemService modemService;
@@ -32,7 +33,8 @@ public class Bla implements CommandLineRunner {
   @Autowired
   private SmppService smppService;
 
-  public void run(final String... args) throws Exception {
+  @Override
+  public void run(final ApplicationArguments args) {
     log.info("Run with arguments {}", args);
     try {
       modemService.init();
@@ -68,21 +70,28 @@ public class Bla implements CommandLineRunner {
       // modemService.send(modem, "31682346962", 1);
 
 
-      if (false && "204080151466084".equals(imsi)) {
+      if (true && "204080151466084".equals(imsi)) {
         // modemService.sendText(modem, "31638031041", "Marie-Louise, dit is een SMS van de PIM applicatie!");
         // modemService.sendText(modem, "31614240689", "Pim, dit is een SMS van de PIM applicatie!");
-        modemService.sendText(modem, "1266", "SALDO");
+        // modemService.sendText(modem, "1266", "SALDO");
+
+//        Thread.sleep(5000);
+//        sendUssd(modem.get3gppModem(), "*100#");
+
         Thread.sleep(5000);
-        modem.get3gppModem().setUssd(1, "*101#");
+        sendUssd(modem.get3gppModem(), "*149#");
+
+        Thread.sleep(5000);
+        sendUssd(modem.get3gppModem(), "*101#");
 //        IntStream.rangeClosed(100,123).forEach(
 //            IntConsumerWithThrowable.castIntConsumerWithThrowable(i -> {
 //          Thread.sleep(1000);
 //          sendUssd(modem.get3gppModem(), "*" + i + "#");
 //        }));
-        Thread.sleep(5000);
-        sendUssd(modem.get3gppModem(), "*107#");
-        Thread.sleep(5000);
-        modem.get3gppModem().setUssd(1, "*111#");
+//        Thread.sleep(5000);
+//        sendUssd(modem.get3gppModem(), "*107#");
+//        Thread.sleep(5000);
+//        modem.get3gppModem().setUssd(1, "*111#");
       }
 
       if ("222013410016127".equals(imsi)) {
@@ -144,8 +153,13 @@ public class Bla implements CommandLineRunner {
           final NetworkRegistrationResponse networkRegistration = etsiModem.getNetworkRegistration();
           final RegistrationState registrationState = networkRegistration.getRegistrationState();
           if (registrationState == RegistrationState.REGISTERED_HOME_NETWORK || registrationState == RegistrationState.REGISTERED_ROAMING) {
-            log.info("Network registration: {} (LAC:{} CID:{})", networkRegistration.getRegistrationState(), networkRegistration.getLac(),
-                networkRegistration.getCellId());
+            if (networkRegistration.getLac().isPresent() && networkRegistration.getCellId().isPresent()) {
+              log.info("Network registration: {} (LAC:{} CID:{})",
+                  networkRegistration.getRegistrationState(),
+                  networkRegistration.getLac().get(), networkRegistration.getCellId().get());
+            } else {
+              log.info("Network registration: {}", networkRegistration.getRegistrationState());
+            }
           } else {
             log.warn("Network registration: {}", networkRegistration.getRegistrationState());
           }

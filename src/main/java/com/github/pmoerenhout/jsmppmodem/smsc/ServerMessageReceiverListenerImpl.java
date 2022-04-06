@@ -20,20 +20,27 @@ import java.nio.charset.Charset;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.lang3.RandomUtils;
+import org.jsmpp.bean.BroadcastSm;
+import org.jsmpp.bean.CancelBroadcastSm;
 import org.jsmpp.bean.CancelSm;
 import org.jsmpp.bean.DataSm;
 import org.jsmpp.bean.OptionalParameter;
+import org.jsmpp.bean.QueryBroadcastSm;
 import org.jsmpp.bean.QuerySm;
 import org.jsmpp.bean.ReplaceSm;
 import org.jsmpp.bean.SubmitMulti;
-import org.jsmpp.bean.SubmitMultiResult;
 import org.jsmpp.bean.SubmitSm;
+import org.jsmpp.bean.UnsuccessDelivery;
 import org.jsmpp.extra.ProcessRequestException;
+import org.jsmpp.session.BroadcastSmResult;
 import org.jsmpp.session.DataSmResult;
+import org.jsmpp.session.QueryBroadcastSmResult;
 import org.jsmpp.session.QuerySmResult;
 import org.jsmpp.session.SMPPServerSession;
 import org.jsmpp.session.ServerMessageReceiverListener;
 import org.jsmpp.session.Session;
+import org.jsmpp.session.SubmitMultiResult;
+import org.jsmpp.session.SubmitSmResult;
 import org.jsmpp.util.MessageIDGenerator;
 import org.jsmpp.util.MessageId;
 
@@ -62,7 +69,8 @@ public class ServerMessageReceiverListenerImpl implements ServerMessageReceiverL
     log.info("SMSC default charset is {}", charset.name());
   }
 
-  public MessageId onAcceptSubmitSm(SubmitSm submitSm, SMPPServerSession source) throws ProcessRequestException {
+  @Override
+  public SubmitSmResult onAcceptSubmitSm(SubmitSm submitSm, SMPPServerSession source) throws ProcessRequestException {
     log.info("received submit_sm on session {}", source.getSessionId());
     log.info(" SubmitSm command id     : {}", submitSm.getCommandId());
     log.info(" SubmitSm command length : {}", submitSm.getCommandLength());
@@ -104,38 +112,65 @@ public class ServerMessageReceiverListenerImpl implements ServerMessageReceiverL
         log.debug("Start the delivery receipt for the short message (text) with an delay of {}ms", delay);
         Executors.newSingleThreadExecutor().submit(new DeliveryReceiptTask(source, submitSm, messageId, charset, delay));
       }
-      log.info("Return the SmppBeanConfigmessageId {}", messageId);
-      return messageId;
+      log.info("Return the messageId {}", messageId);
+      SubmitSmResult submitSmResult = new SubmitSmResult(messageId, new OptionalParameter[]{});
+      return submitSmResult;
     } catch (InvalidMessagePayloadException e) {
       throw new ProcessRequestException(e.getMessage(), 6000);
     }
   }
 
+  @Override
   public DataSmResult onAcceptDataSm(final DataSm dataSm, final Session source) throws ProcessRequestException {
     log.info("Received data_sm");
     throw new ProcessRequestException("The data_sm is not implemented", STAT_ESME_RSYSERR);
   }
 
+  @Override
   public SubmitMultiResult onAcceptSubmitMulti(final SubmitMulti submitMulti, final SMPPServerSession source) throws ProcessRequestException {
     log.info("Received submit_multi");
     final MessageId messageId = messageIDGenerator.newMessageId();
-    return new SubmitMultiResult(messageId.getValue());
+    return new SubmitMultiResult(messageId.getValue(), new UnsuccessDelivery[]{}, new OptionalParameter[]{});
   }
 
+  @Override
   public QuerySmResult onAcceptQuerySm(QuerySm querySm, SMPPServerSession source) throws ProcessRequestException {
     log.info("Received query_sm");
     throw new ProcessRequestException("The replace_sm is not implemented", STAT_ESME_RSYSERR);
   }
 
+  @Override
   public void onAcceptReplaceSm(ReplaceSm replaceSm, SMPPServerSession source) throws ProcessRequestException {
     log.info("Received replace_sm");
     throw new ProcessRequestException("The replace_sm is not implemented", STAT_ESME_RSYSERR);
   }
 
+  @Override
   public void onAcceptCancelSm(CancelSm cancelSm, SMPPServerSession source)
       throws ProcessRequestException {
-    log.info("Received cancelsm");
+    log.info("Received cancel_sm");
     throw new ProcessRequestException("The cancel_sm is not implemented", STAT_ESME_RSYSERR);
+  }
+
+  @Override
+  public QueryBroadcastSmResult onAcceptQueryBroadcastSm(QueryBroadcastSm queryBroadcastSm, SMPPServerSession source)
+      throws ProcessRequestException {
+    log.info("Received query_broadcast_sm");
+    throw new ProcessRequestException("The query_broadcast_sm is not implemented", STAT_ESME_RSYSERR);
+  }
+
+  @Override
+  public void onAcceptCancelBroadcastSm(CancelBroadcastSm cancelBroadcastSm, SMPPServerSession source)
+      throws ProcessRequestException {
+    log.info("Received cancel_broadcast_sm");
+    throw new ProcessRequestException("The cancel_broadcast_sm is not implemented", STAT_ESME_RSYSERR);
+  }
+
+  @Override
+  public BroadcastSmResult onAcceptBroadcastSm(BroadcastSm broadcastSm, SMPPServerSession source)
+      throws ProcessRequestException {
+    log.info("Received broadcast_sm");
+    throw new ProcessRequestException("The broadcast_sm is not implemented", STAT_ESME_RSYSERR);
   }
 
   private byte[] getUserData(final boolean udhi, final byte[] data) {

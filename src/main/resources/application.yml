@@ -36,7 +36,8 @@ logging:
     com.github.pmoerenhout.jsmpp-pool: info
     com.github.pmoerenhout: info
     com.github.pmoerenhout.jsmppmodem.service.PduService: warn
-    org.jsmpp: info
+    com.github.pmoerenhout.jsmppmodem.UnsolicitedCallback: debug
+    org.jsmpp: debug
 
 ---
 
