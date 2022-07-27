@@ -46,7 +46,7 @@
 
     <jcharset.version>2.1</jcharset.version>
     <telecom-charsets.version>1.0.1</telecom-charsets.version>
-    <jsmpp.version>3.0.0-SNAPSHOT</jsmpp.version>
+    <jsmpp.version>3.0.0</jsmpp.version>
     <jssc.version>2.8.0</jssc.version>
     <marineapi.version>0.11.0</marineapi.version>
     <pduutils.version>0.0.1-SNAPSHOT</pduutils.version>
