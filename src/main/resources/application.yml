@@ -42,7 +42,9 @@ logging:
 ---
 
 spring:
-  profiles: development
+  config:
+    activate:
+      on-profile: development
 
 modem:
 #  port: /dev/tty.usbserial-A40090EW

@@ -59,7 +59,7 @@ public class Bla implements ApplicationRunner {
 
       String imsi = modem.get3gppModem().getInternationalMobileSubscriberIdentity();
 
-      // modemService.deleteAllMessage(modem);
+      modemService.deleteAllMessage(modem);
       // modemService.send(modem, "31635778003", 1);
       // modemService.send(modem, "31614240689", 1);
       // modemService.send(modem, "31645152740", 1);
@@ -78,11 +78,14 @@ public class Bla implements ApplicationRunner {
 //        Thread.sleep(5000);
 //        sendUssd(modem.get3gppModem(), "*100#");
 
-        Thread.sleep(5000);
+        Thread.sleep(15000);
         sendUssd(modem.get3gppModem(), "*149#");
 
-        Thread.sleep(5000);
+        Thread.sleep(15000);
         sendUssd(modem.get3gppModem(), "*101#");
+
+        Thread.sleep(15000);
+        sendUssd(modem.get3gppModem(), "*107#");
 //        IntStream.rangeClosed(100,123).forEach(
 //            IntConsumerWithThrowable.castIntConsumerWithThrowable(i -> {
 //          Thread.sleep(1000);
@@ -195,8 +198,16 @@ public class Bla implements ApplicationRunner {
 
   private void sendUssd(final EtsiModem modem, final String ussdString) throws
       ResponseException, TimeoutException, SerialException {
-    log.info("Send USSD {}", ussdString);
-    modem.setUssd(1, ussdString);
+      log.info("Send USSD {}", ussdString);
+      modem.setUssd(1, ussdString);
+  }
+
+  private void trySendUssd(final EtsiModem modem, final String ussdString)   {
+    try {
+      modem.setUssd(1, ussdString);
+    } catch (ResponseException|  TimeoutException| SerialException e){
+      log.error("Error executing USSD " + ussdString, e);
+    }
   }
 
   @Scheduled(initialDelay = 60000, fixedRate = 60000)
