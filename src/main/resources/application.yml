@@ -32,9 +32,9 @@ logging:
     console:
   level:
     root: info
-    com.github.pmoerenhout.atcommander: info
+    com.github.pmoerenhout.atcommander: debug
     com.github.pmoerenhout.jsmpp-pool: info
-    com.github.pmoerenhout: info
+    com.github.pmoerenhout: debug
     com.github.pmoerenhout.jsmppmodem.service.PduService: warn
     com.github.pmoerenhout.jsmppmodem.UnsolicitedCallback: debug
     org.jsmpp: debug
@@ -63,5 +63,5 @@ modem:
     level:
       com.github.pmoerenhout.atcommander: trace
       com.github.pmoerenhout.jsmpp-pool: info
-      com.github.pmoerenhout: info
+      com.github.pmoerenhout: debug
       org.jsmpp: debug

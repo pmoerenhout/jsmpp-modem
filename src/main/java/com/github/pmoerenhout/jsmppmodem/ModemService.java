@@ -76,11 +76,22 @@ public class ModemService {
   public void init() {
     log.info("Initialize all modems");
     modems.forEach(modem -> {
+//      try {
+//        final Sim kpnSim = new Sim();
+//        kpnSim.setIccid("8931089118051240341");
+//        kpnSim.setPin1("0000");
+//        modem.setSim(kpnSim);
+//        init(modem);
+//        modem.setInitialized(true);
+//      } catch (InitException e) {
+//        log.error("Modem {} at port {} speed {} could not be initialised: {}", modem.getId(), modem.getPort(), modem.getSpeed(), e.getMessage());
+//      }
       try {
-        final Sim kpnSim = new Sim();
-        kpnSim.setIccid("8931089118051240341");
-        kpnSim.setPin1("0000");
-        modem.setSim(kpnSim);
+        final Sim tmobileSim = new Sim();
+        tmobileSim.setIccid("8931163200046385594");
+        tmobileSim.setPin1("0000");
+        tmobileSim.setSubscriberNumber("31642791436");
+        modem.setSim(tmobileSim);
         init(modem);
         modem.setInitialized(true);
       } catch (InitException e) {
@@ -106,7 +117,9 @@ public class ModemService {
       etsiModem.init();
       //etsiModem.getSimpleCommand(new String(new byte[]{ (byte) 0x1a }));
       etsiModem.getAttention();
-      // etsiModem.getI
+
+      //etsiModem.reboot();
+
       manufacturerIdentification = etsiModem.getManufacturerIdentification();
 
       final boolean isSonyEricsson = (manufacturerIdentification.contains("SONY ERICSSON"));
@@ -190,8 +203,10 @@ public class ModemService {
       }
 
       if (isQuectel) {
-        log.info("Set Quectel URC to USB AT");
-        var r = etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbat\"").set();
+        // log.info("Set Quectel URC to USB AT");
+        // var r = etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbat\"").set();
+        log.info("Set Quectel URC to USB Modem");
+        etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbmodem\"").set();
       }
 
       // etsiModem.setNewMessageIndications(2, 3, 2, 2, 0);
@@ -205,10 +220,10 @@ public class ModemService {
         // Quectel: +CNMI: (0-2),(0-3),(0,2),(0-2),(0,1)
         // Use just indications
         etsiModem.setNewMessageIndications(2, 2, 2, 1, 0);
+        // AT+CNMI=2,2,2,1,0
       }
       // USSD enable the result code presentation to the TE
       etsiModem.setUssd(1);
-      // modem.setOperatorSelection(OperatorSelectionMode.AUTOMATIC);
       waitForAutomaticRegistration(etsiModem);
       log.info("Network registration state: {}", etsiModem.getNetworkRegistration().getRegistrationState());
 

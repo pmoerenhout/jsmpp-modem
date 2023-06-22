@@ -19,10 +19,12 @@ public class PduService {
     pdu.setMessageReference(0);
 //    pdu.setSmscAddress("316540998300");
 //    pdu.setSmscAddressType(17);
-    pdu.setAddress(new MsIsdn(address));
     if (address.length() <= 5) {
-      pdu.setAddressType(0x00);
+      pdu.setAddress(new MsIsdn(address, MsIsdn.Type.NATIONAL));
+      //pdu.setAddressType(0x00); // KPN
+      pdu.setAddressType(0x21);
     } else {
+      pdu.setAddress(new MsIsdn(address));
       pdu.setAddressType(0x11);
     }
     pdu.setDecodedText(text);

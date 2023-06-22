@@ -333,6 +333,7 @@ public class SmppService {
     log.info("Deliver message to {} session(s)", sessions.size());
     final AtomicInteger i = new AtomicInteger(0);
     sessions.forEach(s -> {
+      log.info("Deliver message to session {}", s.getSessionId());
       if (s.getSessionState().isBound()) {
         if (deliver(s, deliverSm)) {
           i.incrementAndGet();

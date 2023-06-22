@@ -1,14 +1,15 @@
 package com.github.pmoerenhout.jsmppmodem.smsc;
 
+import java.nio.charset.Charset;
 import java.util.BitSet;
 
-import net.freeutils.charset.gsm.CCGSMCharset;
-import net.freeutils.charset.gsm.CCPackedGSMCharset;
+import net.freeutils.charset.gsm.SCGSMCharset;
+import net.freeutils.charset.gsm.SCPackedGSMCharset;
 
 public class SmsUtil {
 
-  private static final CCPackedGSMCharset GSM_PACKED_CHARSET = new CCPackedGSMCharset();
-  private static final CCGSMCharset GSM_CHARSET = new CCGSMCharset();
+  private static final Charset GSM_PACKED_CHARSET = new SCPackedGSMCharset();
+  private static final Charset GSM_CHARSET = new SCGSMCharset();
 
   private SmsUtil() {
   }

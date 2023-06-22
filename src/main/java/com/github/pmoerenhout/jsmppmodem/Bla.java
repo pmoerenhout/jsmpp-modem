@@ -69,11 +69,10 @@ public class Bla implements ApplicationRunner {
       // modemService.send("31687263195", 10);
       // modemService.send(modem, "31682346962", 1);
 
-
       if (true && "204080151466084".equals(imsi)) {
         // modemService.sendText(modem, "31638031041", "Marie-Louise, dit is een SMS van de PIM applicatie!");
         // modemService.sendText(modem, "31614240689", "Pim, dit is een SMS van de PIM applicatie!");
-        // modemService.sendText(modem, "1266", "SALDO");
+        modemService.sendText(modem, "1266", "SALDO");
 
 //        Thread.sleep(5000);
 //        sendUssd(modem.get3gppModem(), "*100#");
@@ -100,6 +99,14 @@ public class Bla implements ApplicationRunner {
       if ("222013410016127".equals(imsi)) {
         // smodemService.sendBinary(modem, Collections.singletonList("3197014268566"));
         modemService.sendBinary(modem, Collections.singletonList("31682346962"));
+      }
+
+      // T-Mobile Prepaid
+      if ("204163404833090".equals(imsi)) {
+        Thread.sleep(10000);
+        modemService.sendText(modem, "1144", "SALDO");
+        Thread.sleep(10000);
+        modemService.sendText(modem, "31614240689", String.format("Pim, dit is een SMS van de PIM applicatie! IMSI is %s", imsi));
       }
 
       final ArrayList<String> destinations = new ArrayList<>();
@@ -179,7 +186,7 @@ public class Bla implements ApplicationRunner {
             }
           }
 
-        } catch (TimeoutException e) {
+        } catch (final TimeoutException e) {
           log.info("Fetching the network registration failed: {}", e.getMessage());
         }
 //      smppService.stop();

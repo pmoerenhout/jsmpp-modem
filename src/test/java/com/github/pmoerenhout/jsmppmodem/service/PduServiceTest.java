@@ -14,7 +14,7 @@ import net.freeutils.charset.gsm.CCPackedGSMCharset;
 class PduServiceTest {
 
   @Test
-  public void test_decode__deliver_pdu() {
+  public void test_decode_deliver_pdu() {
     final byte[] bytes = Util.hexToByteArray("0791448720003023240DD0E474D81C0EBB010000111011315214000BE474D81C0EBB5DE3771B");
     final SmsDeliveryPdu pdu = (SmsDeliveryPdu) PduService.decode(bytes);
     assertEquals("diafaan", pdu.getAddress());
