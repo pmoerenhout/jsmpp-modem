@@ -203,10 +203,10 @@ public class ModemService {
       }
 
       if (isQuectel) {
-        // log.info("Set Quectel URC to USB AT");
-        // var r = etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbat\"").set();
-        log.info("Set Quectel URC to USB Modem");
-        etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbmodem\"").set();
+        log.info("Set Quectel URC to USB AT");
+        etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbat\"").set();
+        //log.info("Set Quectel URC to USB Modem");
+        //etsiModem.getSimpleCommand("AT+QURCCFG=\"urcport\",\"usbmodem\"").set();
       }
 
       // etsiModem.setNewMessageIndications(2, 3, 2, 2, 0);
